@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // システム操作
   showInFinder: (filePath: string) => ipcRenderer.invoke('show-in-finder', filePath),
+  
+  // ファイル変換
+  convertJsonlToMd: (jsonlPath: string, outputDir: string) => ipcRenderer.invoke('convert-jsonl-to-md', jsonlPath, outputDir),
 });
 
 // TypeScript用の型定義
@@ -49,6 +52,7 @@ declare global {
       getProjectFiles: (projectPath: string) => Promise<ConversationFile[]>;
       showErrorDialog: (title: string, message: string) => Promise<void>;
       showInFinder: (filePath: string) => Promise<void>;
+      convertJsonlToMd: (jsonlPath: string, outputDir: string) => Promise<{ success: boolean; mdPath?: string; error?: string }>;
     };
   }
 }

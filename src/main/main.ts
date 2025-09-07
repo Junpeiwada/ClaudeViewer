@@ -2,6 +2,7 @@ import { app, BrowserWindow, nativeTheme, Menu, ipcMain, dialog, shell } from 'e
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { spawn } from 'child_process';
 
 class ClaudeViewer {
   private mainWindow: BrowserWindow | null = null;
@@ -265,6 +266,74 @@ class ClaudeViewer {
       } catch (error) {
         console.error('Error showing in Finder:', error);
       }
+    });
+
+    // JSONL→MD変換
+    ipcMain.handle('convert-jsonl-to-md', async (_, jsonlPath: string, outputDir: string) => {
+      return new Promise((resolve) => {
+        try {
+          // venv環境のclaude-extractコマンドを実行
+          const venvPath = '/Users/junpeiwada/Documents/Project/ClaudeViewer/claude-extractor-env';
+          const claudeExtractPath = path.join(venvPath, 'bin', 'claude-extract');
+          
+          // 出力ディレクトリを作成
+          if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+          }
+
+          // claude-extractプロセスを起動
+          const claudeProcess = spawn(claudeExtractPath, [
+            '--extract', '1', // 指定したJSONLファイルに基づく変換（要調整）
+            '--output', outputDir
+          ], {
+            env: { ...process.env, PATH: `${path.join(venvPath, 'bin')}:${process.env.PATH}` },
+            cwd: '/Users/junpeiwada/Documents/Project/ClaudeViewer'
+          });
+
+          let stdout = '';
+          let stderr = '';
+
+          claudeProcess.stdout?.on('data', (data) => {
+            stdout += data.toString();
+          });
+
+          claudeProcess.stderr?.on('data', (data) => {
+            stderr += data.toString();
+          });
+
+          claudeProcess.on('close', (code) => {
+            if (code === 0) {
+              // 生成されたMDファイルを探す
+              const outputFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.md'));
+              const mdPath = outputFiles.length > 0 ? path.join(outputDir, outputFiles[0]) : null;
+              
+              resolve({ 
+                success: true, 
+                mdPath: mdPath,
+                stdout: stdout 
+              });
+            } else {
+              resolve({ 
+                success: false, 
+                error: `変換プロセスエラー (code: ${code}): ${stderr}` 
+              });
+            }
+          });
+
+          claudeProcess.on('error', (error) => {
+            resolve({ 
+              success: false, 
+              error: `プロセス起動エラー: ${error.message}` 
+            });
+          });
+
+        } catch (error) {
+          resolve({ 
+            success: false, 
+            error: `変換エラー: ${error}` 
+          });
+        }
+      });
     });
   }
 }

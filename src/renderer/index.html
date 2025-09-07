@@ -206,9 +206,6 @@
                         valueB = b.name.toLowerCase();
                         break;
                     case 'date':
-                        // デバッグ用（一時的）
-                        console.log('Sorting by date:', a.date, '(mtime:', a.mtime, ')');
-                        
                         // 実データではmtimeオブジェクトを使用
                         if (a.mtime && b.mtime) {
                             valueA = new Date(a.mtime);
@@ -295,9 +292,8 @@
                     selectFile(file);
                 });
                 
-                row.addEventListener('dblclick', () => {
-                    updateStatus(`ファイル開く: ${file.name}`);
-                    setTimeout(() => updateStatus('Ready'), 1000);
+                row.addEventListener('dblclick', async () => {
+                    await openFile(file);
                 });
                 
                 row.addEventListener('contextmenu', (e) => {
@@ -334,6 +330,40 @@
             selectedRow?.classList.add('selected');
             
             updateSelectionInfo();
+        }
+
+        async function openFile(file) {
+            try {
+                updateStatus(`変換準備中: ${file.name}`);
+                
+                // 一時的な出力ディレクトリ
+                const outputDir = '/tmp/claude-viewer-conversion';
+                
+                updateStatus(`変換中: ${file.name}`);
+                
+                // JSONL→MD変換を実行
+                const result = await window.electronAPI.convertJsonlToMd(file.fullPath, outputDir);
+                
+                if (result.success && result.mdPath) {
+                    updateStatus(`変換完了: ${file.name}`);
+                    
+                    // TODO: Phase 6-7で実装予定 - MD→HTML変換とモーダル表示
+                    console.log('Generated MD file:', result.mdPath);
+                    
+                    setTimeout(() => updateStatus('Ready'), 2000);
+                } else {
+                    throw new Error(result.error || '変換に失敗しました');
+                }
+                
+            } catch (error) {
+                console.error('File conversion error:', error);
+                updateStatus('変換エラー');
+                await window.electronAPI.showErrorDialog(
+                    '変換エラー',
+                    `ファイルの変換に失敗しました:\n${error.message || error}`
+                );
+                setTimeout(() => updateStatus('Ready'), 1000);
+            }
         }
 
         // DOM読み込み完了時の処理
