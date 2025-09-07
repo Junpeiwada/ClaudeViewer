@@ -59,13 +59,13 @@ class ClaudeViewer {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        preload: path.join(__dirname, '../../renderer/renderer/preload.js'),
+        preload: path.join(__dirname, '../renderer', 'preload.js'),
       },
       show: false, // 準備完了後に表示
     });
 
-    // HTMLファイルの読み込み
-    this.mainWindow.loadFile(path.join(__dirname, '../../renderer/renderer/index.html'));
+    // HTMLファイルの読み込み（Webpack出力）
+    this.mainWindow.loadFile(path.join(__dirname, '../../renderer', 'index.html'));
 
     // 準備完了後にウィンドウを表示
     this.mainWindow.once('ready-to-show', () => {
@@ -334,6 +334,19 @@ class ClaudeViewer {
           });
         }
       });
+    });
+
+    // ファイル読み込み
+    ipcMain.handle('read-file', async (_, filePath: string) => {
+      try {
+        if (!fs.existsSync(filePath)) {
+          throw new Error('File not found');
+        }
+        return fs.readFileSync(filePath, 'utf-8');
+      } catch (error) {
+        console.error('Error reading file:', error);
+        throw error;
+      }
     });
   }
 }

@@ -5,19 +5,19 @@
   "main": "dist/main/main/main.js",
   "scripts": {
     "dev": "npm run build && electron .",
-    "build": "npm run build:main && npm run build:renderer && npm run copy:assets",
+    "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
-    "build:renderer": "tsc -p tsconfig.renderer.json",
-    "copy:assets": "cp src/renderer/*.html src/renderer/*.css dist/renderer/renderer/",
+    "build:renderer": "webpack --mode development",
+    "build:renderer:prod": "webpack --mode production",
     "watch": "npm run watch:main & npm run watch:renderer",
     "watch:main": "tsc -p tsconfig.main.json -w",
-    "watch:renderer": "tsc -p tsconfig.renderer.json -w",
+    "watch:renderer": "webpack --mode development --watch",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "clean": "rimraf dist",
-    "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac"
+    "dist": "npm run build:main && npm run build:renderer:prod && electron-builder",
+    "dist:mac": "npm run build:main && npm run build:renderer:prod && electron-builder --mac"
   },
   "keywords": [
     "electron",
@@ -40,7 +40,14 @@
     "eslint-plugin-prettier": "^5.0.1",
     "prettier": "^3.1.0",
     "rimraf": "^5.0.5",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.1",
+    "html-webpack-plugin": "^5.5.4",
+    "copy-webpack-plugin": "^11.0.0",
+    "style-loader": "^3.3.4",
+    "css-loader": "^6.8.1"
   },
   "dependencies": {
     "electron-updater": "^6.1.4"

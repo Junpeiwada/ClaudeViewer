@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist/renderer",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node"]
+    "types": ["node"],
+    "moduleResolution": "node",
+    "strict": false,
+    "skipLibCheck": true
   },
   "include": ["src/renderer/**/*", "src/shared/**/*"],
   "exclude": ["src/main/**/*"]
