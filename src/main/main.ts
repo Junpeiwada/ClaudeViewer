@@ -66,14 +66,27 @@ class ClaudeViewer {
       if (this.mainWindow) {
         this.mainWindow.show();
         
-        // F12キーでDevToolsを開閉できるようにする
+        // F12キーでDevToolsを開閉（安定化版）
+        let f12LastPressed = 0;
         this.mainWindow.webContents.on('before-input-event', (event, input) => {
-          if (input.key === 'F12') {
-            if (this.mainWindow?.webContents.isDevToolsOpened()) {
-              this.mainWindow.webContents.closeDevTools();
-            } else {
-              this.mainWindow?.webContents.openDevTools();
+          if (input.key === 'F12' && input.type === 'keyDown') {
+            const now = Date.now();
+            // デバウンス：200ms以内の連続操作を無視
+            if (now - f12LastPressed < 200) {
+              return;
             }
+            f12LastPressed = now;
+            
+            // DevTools開閉処理
+            setTimeout(() => {
+              if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                if (this.mainWindow.webContents.isDevToolsOpened()) {
+                  this.mainWindow.webContents.closeDevTools();
+                } else {
+                  this.mainWindow.webContents.openDevTools();
+                }
+              }
+            }, 10);
           }
         });
         

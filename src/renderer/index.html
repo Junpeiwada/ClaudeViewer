@@ -9,31 +9,345 @@
 <body>
     <div class="app-container">
         <header class="app-header">
-            <h1>🏔️ Claude Code Viewer</h1>
-            <div class="status-info">
-                <span id="status-text">起動中...</span>
+            <div class="header-left">
+                <h1>🏔️ Claude Code Viewer</h1>
+                <div class="status-info">
+                    <span id="status-text">Ready</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="refresh-btn" class="header-btn">
+                    <span>🔄</span> 更新
+                </button>
+                <button id="settings-btn" class="header-btn">
+                    <span>⚙️</span> 設定
+                </button>
             </div>
         </header>
         
         <main class="main-content">
-            <div class="welcome-message">
-                <h2>Claude Code会話ログビューア</h2>
-                <p>JSONLファイルをHTMLで閲覧するElectronアプリケーション</p>
-                <div class="version-info">
-                    <p>Version: <span id="app-version">読み込み中...</span></p>
-                    <p>テーマ: <span id="theme-status">読み込み中...</span></p>
-                </div>
+            <div class="content-panes">
+                <aside class="project-pane">
+                    <div class="pane-header">
+                        <h3>📁 プロジェクト一覧</h3>
+                    </div>
+                    <div class="project-list" id="project-list">
+                        <!-- プロジェクト一覧がここに動的に追加される -->
+                    </div>
+                </aside>
+                
+                <section class="file-pane">
+                    <div class="file-list-container">
+                        <table class="file-list" id="file-list">
+                            <thead>
+                                <tr>
+                                    <th id="sort-name" class="sortable" data-sort="name">
+                                        ファイル名 <span class="sort-arrow"></span>
+                                    </th>
+                                    <th id="sort-date" class="sortable active" data-sort="date">
+                                        更新日時 <span class="sort-arrow">▼</span>
+                                    </th>
+                                    <th id="sort-size" class="sortable" data-sort="size">
+                                        サイズ <span class="sort-arrow"></span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="file-list-body">
+                                <!-- ファイル一覧がここに動的に追加される -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
         </main>
         
         <footer class="app-footer">
             <div class="footer-content">
-                <span>Ready</span>
-                <span id="theme-indicator">🌙</span>
+                <div class="status-left">
+                    <span id="status-message">Ready</span>
+                </div>
+                <div class="status-right">
+                    <span id="selection-info">プロジェクト未選択</span>
+                    <span id="theme-indicator">🌙</span>
+                </div>
             </div>
         </footer>
     </div>
     
-    <script src="renderer.js"></script>
+    <script>
+        
+        // プロジェクト別の仮データ
+        const mockProjects = [
+            { name: "MyProject", path: "/Users/user/.claude/projects/MyProject" },
+            { name: "TestProject", path: "/Users/user/.claude/projects/TestProject" },
+            { name: "DemoApp", path: "/Users/user/.claude/projects/DemoApp" },
+            { name: "WebApp", path: "/Users/user/.claude/projects/WebApp" }
+        ];
+        
+        // プロジェクト別のファイルデータ
+        const projectFiles = {
+            "MyProject": [
+                { name: "session_001.jsonl", date: "2024-01-15 14:30", size: "1.2MB", fullPath: "/path/MyProject/file1" },
+                { name: "session_002.jsonl", date: "2024-01-14 09:15", size: "2.8MB", fullPath: "/path/MyProject/file2" },
+                { name: "conversation_003.jsonl", date: "2024-01-13 16:45", size: "0.9MB", fullPath: "/path/MyProject/file3" }
+            ],
+            "TestProject": [
+                { name: "test_session_001.jsonl", date: "2024-01-12 11:20", size: "1.8MB", fullPath: "/path/TestProject/file1" },
+                { name: "debug_002.jsonl", date: "2024-01-11 08:45", size: "3.2MB", fullPath: "/path/TestProject/file2" }
+            ],
+            "DemoApp": [
+                { name: "demo_conversation.jsonl", date: "2024-01-10 15:30", size: "2.1MB", fullPath: "/path/DemoApp/file1" },
+                { name: "demo_session_002.jsonl", date: "2024-01-09 10:15", size: "1.5MB", fullPath: "/path/DemoApp/file2" },
+                { name: "demo_test.jsonl", date: "2024-01-08 14:20", size: "0.7MB", fullPath: "/path/DemoApp/file3" },
+                { name: "demo_final.jsonl", date: "2024-01-07 16:45", size: "2.9MB", fullPath: "/path/DemoApp/file4" }
+            ],
+            "WebApp": [
+                { name: "webapp_session.jsonl", date: "2024-01-06 09:30", size: "1.1MB", fullPath: "/path/WebApp/file1" }
+            ]
+        };
+
+        // シンプルなアプリロジック
+        let selectedProject = null;
+        let selectedFile = null;
+        let currentSort = { column: 'date', ascending: false }; // デフォルト：日時降順
+
+        function updateStatus(message) {
+            const statusElement = document.getElementById('status-message');
+            if (statusElement) {
+                statusElement.textContent = message;
+            }
+        }
+
+        function updateSelectionInfo() {
+            const selectionElement = document.getElementById('selection-info');
+            if (!selectionElement) return;
+            
+            let info = '';
+            if (selectedProject) {
+                const fileCount = (projectFiles[selectedProject.name] || []).length;
+                info = `${selectedProject.name} - ${fileCount} files`;
+                if (selectedFile) {
+                    info += ` - ${selectedFile.name}`;
+                }
+            } else {
+                info = 'プロジェクト未選択';
+            }
+            selectionElement.textContent = info;
+        }
+
+        function loadProjects() {
+            const projectList = document.getElementById('project-list');
+            
+            if (!projectList) {
+                console.error('project-list element not found!');
+                return;
+            }
+
+            projectList.innerHTML = '';
+            
+            mockProjects.forEach(project => {
+                const projectElement = document.createElement('div');
+                projectElement.className = 'project-item';
+                projectElement.innerHTML = `
+                    <span class="project-icon">📁</span>
+                    <span class="project-name">${project.name}</span>
+                `;
+                
+                projectElement.addEventListener('click', () => {
+                    selectProject(project);
+                });
+                
+                projectList.appendChild(projectElement);
+            });
+        }
+
+        function selectProject(project) {
+            selectedProject = project;
+            
+            // 選択状態更新
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            const projectElements = Array.from(document.querySelectorAll('.project-item'));
+            const selectedElement = projectElements.find(element => 
+                element.querySelector('.project-name')?.textContent === project.name
+            );
+            selectedElement?.classList.add('selected');
+            
+            loadFiles();
+            updateSelectionInfo();
+        }
+
+        function sortFiles(files, column, ascending) {
+            return [...files].sort((a, b) => {
+                let valueA, valueB;
+                
+                switch(column) {
+                    case 'name':
+                        valueA = a.name.toLowerCase();
+                        valueB = b.name.toLowerCase();
+                        break;
+                    case 'date':
+                        valueA = new Date(a.date.replace(' ', 'T'));
+                        valueB = new Date(b.date.replace(' ', 'T'));
+                        break;
+                    case 'size':
+                        // サイズを数値に変換（MB単位）
+                        valueA = parseFloat(a.size.replace('MB', ''));
+                        valueB = parseFloat(b.size.replace('MB', ''));
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (valueA < valueB) return ascending ? -1 : 1;
+                if (valueA > valueB) return ascending ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function updateSortHeaders() {
+            // 全てのヘッダーをリセット
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.classList.remove('active');
+                th.querySelector('.sort-arrow').textContent = '';
+            });
+            
+            // アクティブなソートカラムを設定
+            const activeHeader = document.querySelector(`[data-sort="${currentSort.column}"]`);
+            if (activeHeader) {
+                activeHeader.classList.add('active');
+                const arrow = activeHeader.querySelector('.sort-arrow');
+                if (arrow) {
+                    arrow.textContent = currentSort.ascending ? '▲' : '▼';
+                }
+            }
+        }
+
+        function loadFiles() {
+            const fileListBody = document.getElementById('file-list-body');
+            
+            if (!fileListBody || !selectedProject) {
+                console.error('file-list-body not found or no project selected');
+                return;
+            }
+
+            fileListBody.innerHTML = '';
+            
+            // 選択されたプロジェクトのファイルを取得
+            const rawFiles = projectFiles[selectedProject.name] || [];
+            
+            // ソート適用
+            const sortedFiles = sortFiles(rawFiles, currentSort.column, currentSort.ascending);
+            
+            sortedFiles.forEach(file => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>📄 ${file.name}</td>
+                    <td>${file.date}</td>
+                    <td>${file.size}</td>
+                `;
+                
+                row.addEventListener('click', () => {
+                    selectFile(file);
+                });
+                
+                row.addEventListener('dblclick', () => {
+                    console.log('Opening file:', file.name);
+                    updateStatus(`ファイル開く: ${file.name}`);
+                    setTimeout(() => updateStatus('Ready'), 1000);
+                });
+                
+                fileListBody.appendChild(row);
+            });
+
+            // ファイル数はステータスバーで表示（updateSelectionInfo内）
+
+            // ソートヘッダーを更新
+            updateSortHeaders();
+        }
+
+        function selectFile(file) {
+            selectedFile = file;
+            
+            document.querySelectorAll('.file-list tbody tr').forEach(row => {
+                row.classList.remove('selected');
+            });
+            
+            const fileRows = Array.from(document.querySelectorAll('.file-list tbody tr'));
+            const selectedRow = fileRows.find(row => 
+                row.textContent?.includes(file.name)
+            );
+            selectedRow?.classList.add('selected');
+            
+            updateSelectionInfo();
+        }
+
+        // DOM読み込み完了時の処理
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // ボタンイベント
+            const refreshBtn = document.getElementById('refresh-btn');
+            const settingsBtn = document.getElementById('settings-btn');
+            
+            refreshBtn?.addEventListener('click', () => {
+                updateStatus('更新中...');
+                setTimeout(() => {
+                    loadProjects();
+                    updateStatus('更新完了');
+                    setTimeout(() => updateStatus('Ready'), 1000);
+                }, 500);
+            });
+            
+            settingsBtn?.addEventListener('click', () => {
+                updateStatus('設定画面（未実装）');
+                setTimeout(() => updateStatus('Ready'), 1000);
+            });
+
+            // ソートイベント
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const column = th.getAttribute('data-sort');
+                    
+                    if (currentSort.column === column) {
+                        // 同じカラムをクリックした場合は昇順/降順を切り替え
+                        currentSort.ascending = !currentSort.ascending;
+                    } else {
+                        // 異なるカラムをクリックした場合は新しいカラムで降順
+                        currentSort.column = column;
+                        currentSort.ascending = false;
+                    }
+                    
+                    // ファイル一覧を再読み込み（ソート適用）
+                    if (selectedProject) {
+                        loadFiles();
+                    }
+                });
+            });
+
+            // テーマ初期化
+            updateTheme();
+            
+            // プロジェクト読み込み
+            loadProjects();
+            updateStatus('Ready');
+        });
+
+        function updateTheme() {
+            const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            
+            const themeIndicator = document.getElementById('theme-indicator');
+            if (themeIndicator) {
+                themeIndicator.textContent = isDark ? '🌙' : '☀️';
+            }
+        }
+
+        // テーマ変更監視
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
+        }
+    </script>
 </body>
 </html>
