@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>🏔️ Claude Code Viewer</h1>
+            <div class="status-info">
+                <span id="status-text">起動中...</span>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <div class="welcome-message">
+                <h2>Claude Code会話ログビューア</h2>
+                <p>JSONLファイルをHTMLで閲覧するElectronアプリケーション</p>
+                <div class="version-info">
+                    <p>Version: <span id="app-version">読み込み中...</span></p>
+                    <p>テーマ: <span id="theme-status">読み込み中...</span></p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="app-footer">
+            <div class="footer-content">
+                <span>Ready</span>
+                <span id="theme-indicator">🌙</span>
+            </div>
+        </footer>
+    </div>
+    
+    <script src="renderer.js"></script>
+</body>
+</html>
