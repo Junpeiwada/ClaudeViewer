@@ -74,42 +74,24 @@
         </footer>
     </div>
     
+    <!-- コンテキストメニュー -->
+    <div id="context-menu" class="context-menu">
+        <div class="context-menu-item" id="context-show-in-finder">
+            <span class="icon">📁</span>
+            <span>Finderで表示</span>
+        </div>
+    </div>
+    
     <script>
-        
-        // プロジェクト別の仮データ
-        const mockProjects = [
-            { name: "MyProject", path: "/Users/user/.claude/projects/MyProject" },
-            { name: "TestProject", path: "/Users/user/.claude/projects/TestProject" },
-            { name: "DemoApp", path: "/Users/user/.claude/projects/DemoApp" },
-            { name: "WebApp", path: "/Users/user/.claude/projects/WebApp" }
-        ];
-        
-        // プロジェクト別のファイルデータ
-        const projectFiles = {
-            "MyProject": [
-                { name: "session_001.jsonl", date: "2024-01-15 14:30", size: "1.2MB", fullPath: "/path/MyProject/file1" },
-                { name: "session_002.jsonl", date: "2024-01-14 09:15", size: "2.8MB", fullPath: "/path/MyProject/file2" },
-                { name: "conversation_003.jsonl", date: "2024-01-13 16:45", size: "0.9MB", fullPath: "/path/MyProject/file3" }
-            ],
-            "TestProject": [
-                { name: "test_session_001.jsonl", date: "2024-01-12 11:20", size: "1.8MB", fullPath: "/path/TestProject/file1" },
-                { name: "debug_002.jsonl", date: "2024-01-11 08:45", size: "3.2MB", fullPath: "/path/TestProject/file2" }
-            ],
-            "DemoApp": [
-                { name: "demo_conversation.jsonl", date: "2024-01-10 15:30", size: "2.1MB", fullPath: "/path/DemoApp/file1" },
-                { name: "demo_session_002.jsonl", date: "2024-01-09 10:15", size: "1.5MB", fullPath: "/path/DemoApp/file2" },
-                { name: "demo_test.jsonl", date: "2024-01-08 14:20", size: "0.7MB", fullPath: "/path/DemoApp/file3" },
-                { name: "demo_final.jsonl", date: "2024-01-07 16:45", size: "2.9MB", fullPath: "/path/DemoApp/file4" }
-            ],
-            "WebApp": [
-                { name: "webapp_session.jsonl", date: "2024-01-06 09:30", size: "1.1MB", fullPath: "/path/WebApp/file1" }
-            ]
-        };
-
-        // シンプルなアプリロジック
+        // 実データ管理
+        let projects = [];
         let selectedProject = null;
         let selectedFile = null;
         let currentSort = { column: 'date', ascending: false }; // デフォルト：日時降順
+        let currentFiles = [];
+        
+        // コンテキストメニュー管理
+        let contextMenuTarget = null;
 
         function updateStatus(message) {
             const statusElement = document.getElementById('status-message');
@@ -124,7 +106,7 @@
             
             let info = '';
             if (selectedProject) {
-                const fileCount = (projectFiles[selectedProject.name] || []).length;
+                const fileCount = currentFiles.length;
                 info = `${selectedProject.name} - ${fileCount} files`;
                 if (selectedFile) {
                     info += ` - ${selectedFile.name}`;
@@ -135,34 +117,69 @@
             selectionElement.textContent = info;
         }
 
-        function loadProjects() {
+        async function loadProjects() {
             const projectList = document.getElementById('project-list');
             
             if (!projectList) {
-                console.error('project-list element not found!');
                 return;
             }
 
-            projectList.innerHTML = '';
-            
-            mockProjects.forEach(project => {
-                const projectElement = document.createElement('div');
-                projectElement.className = 'project-item';
-                projectElement.innerHTML = `
-                    <span class="project-icon">📁</span>
-                    <span class="project-name">${project.name}</span>
-                `;
+            try {
+                updateStatus('プロジェクト検索中...');
                 
-                projectElement.addEventListener('click', () => {
-                    selectProject(project);
+                // Electron APIでプロジェクト一覧を取得
+                projects = await window.electronAPI.getProjects();
+                
+                // プロジェクト一覧をクリア
+                projectList.innerHTML = '';
+                
+                if (projects.length === 0) {
+                    // プロジェクトが見つからない場合
+                    await window.electronAPI.showErrorDialog(
+                        'Claude Projectsが見つかりません',
+                        'Claude Codeを使用していますか？\n~/.claude/projects フォルダが見つかりません。'
+                    );
+                    updateStatus('プロジェクトが見つかりません');
+                    return;
+                }
+                
+                // プロジェクトリストを表示
+                projects.forEach(project => {
+                    const projectElement = document.createElement('div');
+                    projectElement.className = 'project-item';
+                    projectElement.innerHTML = `
+                        <span class="project-icon">📁</span>
+                        <span class="project-name">${project.name}</span>
+                    `;
+                    
+                    projectElement.addEventListener('click', () => {
+                        selectProject(project);
+                    });
+                    
+                    projectElement.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        showContextMenu(e.clientX, e.clientY, project.path, false);
+                    });
+                    
+                    projectList.appendChild(projectElement);
                 });
                 
-                projectList.appendChild(projectElement);
-            });
+                updateStatus(`${projects.length}個のプロジェクトが見つかりました`);
+                setTimeout(() => updateStatus('Ready'), 1500);
+                
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                updateStatus('プロジェクト読み込みエラー');
+                await window.electronAPI.showErrorDialog(
+                    'エラー',
+                    'プロジェクトの読み込みに失敗しました。'
+                );
+            }
         }
 
-        function selectProject(project) {
+        async function selectProject(project) {
             selectedProject = project;
+            selectedFile = null; // ファイル選択をリセット
             
             // 選択状態更新
             document.querySelectorAll('.project-item').forEach(item => {
@@ -175,7 +192,7 @@
             );
             selectedElement?.classList.add('selected');
             
-            loadFiles();
+            await loadFiles();
             updateSelectionInfo();
         }
 
@@ -189,8 +206,18 @@
                         valueB = b.name.toLowerCase();
                         break;
                     case 'date':
-                        valueA = new Date(a.date.replace(' ', 'T'));
-                        valueB = new Date(b.date.replace(' ', 'T'));
+                        // デバッグ用（一時的）
+                        console.log('Sorting by date:', a.date, '(mtime:', a.mtime, ')');
+                        
+                        // 実データではmtimeオブジェクトを使用
+                        if (a.mtime && b.mtime) {
+                            valueA = new Date(a.mtime);
+                            valueB = new Date(b.mtime);
+                        } else {
+                            // フォールバック：文字列から日時解析
+                            valueA = new Date(a.date.replace(' ', 'T'));
+                            valueB = new Date(b.date.replace(' ', 'T'));
+                        }
                         break;
                     case 'size':
                         // サイズを数値に変換（MB単位）
@@ -225,21 +252,36 @@
             }
         }
 
-        function loadFiles() {
+        async function loadFiles() {
             const fileListBody = document.getElementById('file-list-body');
             
             if (!fileListBody || !selectedProject) {
-                console.error('file-list-body not found or no project selected');
                 return;
             }
 
             fileListBody.innerHTML = '';
             
-            // 選択されたプロジェクトのファイルを取得
-            const rawFiles = projectFiles[selectedProject.name] || [];
-            
-            // ソート適用
-            const sortedFiles = sortFiles(rawFiles, currentSort.column, currentSort.ascending);
+            try {
+                updateStatus(`${selectedProject.name} のファイルを読み込み中...`);
+                
+                // Electron APIでプロジェクトのファイル一覧を取得
+                currentFiles = await window.electronAPI.getProjectFiles(selectedProject.path);
+                
+                if (currentFiles.length === 0) {
+                    // ファイルがない場合
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                            JSONLファイルが見つかりません
+                        </td>
+                    `;
+                    fileListBody.appendChild(row);
+                    updateStatus('ファイルが見つかりません');
+                    return;
+                }
+                
+                // ソート適用
+                const sortedFiles = sortFiles(currentFiles, currentSort.column, currentSort.ascending);
             
             sortedFiles.forEach(file => {
                 const row = document.createElement('tr');
@@ -254,18 +296,28 @@
                 });
                 
                 row.addEventListener('dblclick', () => {
-                    console.log('Opening file:', file.name);
                     updateStatus(`ファイル開く: ${file.name}`);
                     setTimeout(() => updateStatus('Ready'), 1000);
                 });
                 
-                fileListBody.appendChild(row);
-            });
+                row.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showContextMenu(e.clientX, e.clientY, file.fullPath, true);
+                });
+                
+                    fileListBody.appendChild(row);
+                });
 
-            // ファイル数はステータスバーで表示（updateSelectionInfo内）
-
-            // ソートヘッダーを更新
-            updateSortHeaders();
+                // ソートヘッダーを更新
+                updateSortHeaders();
+                
+                updateStatus(`${currentFiles.length}個のファイルを読み込みました`);
+                setTimeout(() => updateStatus('Ready'), 1500);
+                
+            } catch (error) {
+                console.error('Error loading files:', error);
+                updateStatus('ファイル読み込みエラー');
+            }
         }
 
         function selectFile(file) {
@@ -291,13 +343,16 @@
             const refreshBtn = document.getElementById('refresh-btn');
             const settingsBtn = document.getElementById('settings-btn');
             
-            refreshBtn?.addEventListener('click', () => {
+            refreshBtn?.addEventListener('click', async () => {
                 updateStatus('更新中...');
-                setTimeout(() => {
-                    loadProjects();
+                try {
+                    await loadProjects();
                     updateStatus('更新完了');
                     setTimeout(() => updateStatus('Ready'), 1000);
-                }, 500);
+                } catch (error) {
+                    console.error('Error refreshing projects:', error);
+                    updateStatus('更新エラー');
+                }
             });
             
             settingsBtn?.addEventListener('click', () => {
@@ -326,6 +381,28 @@
                 });
             });
 
+            // コンテキストメニューのイベント設定
+            const contextShowInFinder = document.getElementById('context-show-in-finder');
+            contextShowInFinder?.addEventListener('click', async () => {
+                if (contextMenuTarget && contextMenuTarget.path) {
+                    await window.electronAPI.showInFinder(contextMenuTarget.path);
+                    updateStatus(`Finderで表示: ${contextMenuTarget.path.split('/').pop()}`);
+                    setTimeout(() => updateStatus('Ready'), 1500);
+                }
+                hideContextMenu();
+            });
+
+            // コンテキストメニューを隠すイベント
+            document.addEventListener('click', () => {
+                hideContextMenu();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    hideContextMenu();
+                }
+            });
+
             // テーマ初期化
             updateTheme();
             
@@ -333,6 +410,33 @@
             loadProjects();
             updateStatus('Ready');
         });
+
+        function showContextMenu(x, y, targetPath, isFile = true) {
+            const contextMenu = document.getElementById('context-menu');
+            if (!contextMenu) return;
+            
+            contextMenuTarget = { path: targetPath, isFile: isFile };
+            
+            // 画面端での調整
+            const rect = document.body.getBoundingClientRect();
+            const menuWidth = 150;
+            const menuHeight = 50;
+            
+            const adjustedX = Math.min(x, rect.width - menuWidth);
+            const adjustedY = Math.min(y, rect.height - menuHeight);
+            
+            contextMenu.style.left = adjustedX + 'px';
+            contextMenu.style.top = adjustedY + 'px';
+            contextMenu.style.display = 'block';
+        }
+
+        function hideContextMenu() {
+            const contextMenu = document.getElementById('context-menu');
+            if (contextMenu) {
+                contextMenu.style.display = 'none';
+            }
+            contextMenuTarget = null;
+        }
 
         function updateTheme() {
             const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
