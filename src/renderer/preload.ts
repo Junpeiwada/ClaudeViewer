@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // ファイル変換
   convertJsonlToMd: (jsonlPath: string, outputDir: string) => ipcRenderer.invoke('convert-jsonl-to-md', jsonlPath, outputDir),
+  convertMdToHtml: (mdContent: string) => ipcRenderer.invoke('convert-md-to-html', mdContent),
   
   // ファイル操作
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
@@ -56,6 +57,7 @@ declare global {
       showErrorDialog: (title: string, message: string) => Promise<void>;
       showInFinder: (filePath: string) => Promise<void>;
       convertJsonlToMd: (jsonlPath: string, outputDir: string) => Promise<{ success: boolean; mdPath?: string; error?: string }>;
+      convertMdToHtml: (mdContent: string) => Promise<{ success: boolean; html?: string; error?: string }>;
       readFile: (filePath: string) => Promise<string>;
     };
   }

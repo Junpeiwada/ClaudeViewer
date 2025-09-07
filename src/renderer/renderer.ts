@@ -194,27 +194,33 @@ async function openFile(file: ConversationFile): Promise<void> {
     updateStatus(`変換準備中: ${file.name}`);
     
     const outputDir = '/tmp/claude-viewer-conversion';
-    updateStatus(`変換中: ${file.name}`);
+    updateStatus(`JSONL→MD変換中: ${file.name}`);
     
-    const result = await window.electronAPI.convertJsonlToMd(file.fullPath, outputDir);
+    // Step 1: JSONL→MD変換
+    const mdResult = await window.electronAPI.convertJsonlToMd(file.fullPath, outputDir);
     
-    if (result.success && result.mdPath) {
-      updateStatus(`変換完了: ${file.name}`);
+    if (mdResult.success && mdResult.mdPath) {
+      updateStatus(`MD→HTML変換中: ${file.name}`);
       
-      // 簡単なモーダル表示（後でHTML変換機能を追加）
-      showHtmlModal(file.name, `
-        <div style="padding: 2rem;">
-          <h2>✅ 変換成功</h2>
-          <p><strong>ファイル:</strong> ${file.name}</p>
-          <p><strong>MDファイル:</strong> ${result.mdPath}</p>
-          <p>変換は正常に完了しました。</p>
-        </div>
-      `);
+      // Step 2: MDファイル読み込み
+      const mdContent = await window.electronAPI.readFile(mdResult.mdPath);
       
-      updateStatus(`表示完了: ${file.name}`);
-      setTimeout(() => updateStatus('Ready'), 2000);
+      // Step 3: MD→HTML変換
+      const htmlResult = await window.electronAPI.convertMdToHtml(mdContent);
+      
+      if (htmlResult.success && htmlResult.html) {
+        updateStatus(`変換完了: ${file.name}`);
+        
+        // Step 4: HTMLモーダル表示
+        showHtmlModal(file.name, htmlResult.html);
+        
+        updateStatus(`表示完了: ${file.name}`);
+        setTimeout(() => updateStatus('Ready'), 2000);
+      } else {
+        throw new Error(htmlResult.error || 'HTML変換に失敗しました');
+      }
     } else {
-      throw new Error(result.error || '変換に失敗しました');
+      throw new Error(mdResult.error || 'JSONL変換に失敗しました');
     }
   } catch (error) {
     console.error('File conversion error:', error);
@@ -316,6 +322,22 @@ function showHtmlModal(fileName: string, htmlContent: string): void {
 
   modalFileName.textContent = fileName;
   modalHtmlContent.innerHTML = htmlContent;
+  
+  // 複数レベルでスクロール位置をリセット
+  modalHtmlContent.scrollTop = 0;
+  modalHtmlContent.scrollLeft = 0;
+  
+  // HTMLコンテンツの読み込み後にもスクロールリセット
+  setTimeout(() => {
+    modalHtmlContent.scrollTo(0, 0);
+    
+    // 内部のHTMLページのbody要素もリセット
+    const iframe = modalHtmlContent.querySelector('iframe') as HTMLIFrameElement;
+    if (iframe?.contentDocument?.body) {
+      iframe.contentDocument.body.scrollTo(0, 0);
+    }
+  }, 100);
+  
   modal.style.display = 'block';
 }
 
