@@ -51,7 +51,7 @@
 
 **macOS用ユニバーサルバイナリ**（Intel・Apple Silicon両対応）
 
-[![Download](https://img.shields.io/badge/Download-DMG-blue?style=for-the-badge&logo=apple)](dist/build/Claude%20Code%20Viewer-1.0.0-universal.dmg)
+[![Download](https://img.shields.io/badge/Download-DMG-blue?style=for-the-badge&logo=apple)](https://github.com/Junpeiwada/ClaudeViewer/raw/main/dist/build/Claude%20Code%20Viewer-1.0.0-universal.dmg)
 
 - **ファイル**: `Claude Code Viewer-1.0.0-universal.dmg`（170MB）
 - **対応macOS**: 10.15 (Catalina) 以降
