@@ -26,37 +26,42 @@
         
         <main class="main-content">
             <div class="content-panes">
-                <aside class="project-pane">
+                <!-- 左ペイン: Tree View -->
+                <aside class="tree-pane">
                     <div class="pane-header">
-                        <h3>📁 プロジェクト一覧</h3>
+                        <h3>📁 Project Tree</h3>
                     </div>
-                    <div class="project-list" id="project-list">
-                        <!-- プロジェクト一覧がここに動的に追加される -->
+                    <div class="tree-view" id="tree-view">
+                        <div class="project-list" id="project-list">
+                            <!-- Tree構造がここに動的に生成される -->
+                        </div>
                     </div>
                 </aside>
                 
-                <section class="file-pane">
-                    <div class="file-list-container">
-                        <table class="file-list" id="file-list">
-                            <thead>
-                                <tr>
-                                    <th id="sort-name" class="sortable" data-sort="name">
-                                        ファイル名 <span class="sort-arrow"></span>
-                                    </th>
-                                    <th id="sort-date" class="sortable active" data-sort="date">
-                                        更新日時 <span class="sort-arrow">▼</span>
-                                    </th>
-                                    <th id="sort-size" class="sortable" data-sort="size">
-                                        サイズ <span class="sort-arrow"></span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody id="file-list-body">
-                                <!-- ファイル一覧がここに動的に追加される -->
-                            </tbody>
-                        </table>
+                <!-- 右ペイン: HTML表示エリア -->
+                <main class="html-pane">
+                    <div class="html-toolbar">
+                        <button id="html-select-all" class="html-btn" title="全選択 (Cmd+A)">📋</button>
+                        <button id="html-copy" class="html-btn" title="選択部分をコピー (Cmd+C)">📄</button>
+                        <button id="html-export" class="html-btn" title="エクスポート">📤</button>
+                        <button id="html-search" class="html-btn" title="検索">🔍</button>
+                        <div class="html-toolbar-spacer"></div>
+                        <span id="html-file-info" class="html-file-info">ファイルを選択してください</span>
                     </div>
-                </section>
+                    <div class="html-content-container">
+                        <div id="html-content-area" class="html-content-area">
+                            <div class="welcome-html">
+                                <h2>🏔️ Claude Code Viewer</h2>
+                                <p>左のTree Viewからファイルを選択すると、ここに会話履歴が表示されます。</p>
+                                <div class="welcome-features">
+                                    <div>📋 テキスト選択・コピー対応</div>
+                                    <div>🔍 高速検索機能</div>
+                                    <div>📤 エクスポート機能</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
             </div>
         </main>
         

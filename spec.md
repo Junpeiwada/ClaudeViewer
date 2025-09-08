@@ -1,141 +1,127 @@
-# Claude Code会話ログビューア
+# Claude Code会話ログビューア仕様書（最新版）
 
 ## 概要
-Claude Codeのログファイル（jsonl形式）をHTMLビューアーで閲覧するElectronアプリケーション
+Claude Codeのログファイル（JSONL形式）をTree View + HTML表示で閲覧するElectronアプリケーション
 
-## 主要機能
+## 主要機能（実装済み）
 
-### 1. ファイル変換処理
-- **claude-conversation-extractor**: 
-  - MITライセンスで再頒布可能
-  - PyInstallerでバイナリ化してアプリに同梱
-  - Node.jsの子プロセス（spawn）として実行
-  - コマンド: `claude-logs --extract <file> --output <output_file>`
-- **MD→HTML変換**: TypeScriptで実装（参考: `/Users/junpeiwada/Documents/Project/AISandbox/claudecode-jsonl/claude_md_to_html.py`）
-- **HTMLスタイル**: 既存実装と同等のデザイン（グラデーション、メッセージバブル、ツール結果の折りたたみ表示）
+### 1. TypeScript版変換エンジン ✅
+- **内蔵TypeScript実装**: 
+  - Python依存関係完全排除
+  - 元版claude-conversation-extractor準拠の出力（23KB）
+  - システムメッセージ・コマンド結果の適切フィルタリング
+  - 直接ファイルパス指定による高速変換
+- **出力品質**: 元版と同等（22KB vs 23KB、誤差3.5%）
+- **処理内容**: 実際の会話のみ抽出、技術的ノイズ除去
 
-### 2. プロジェクト管理
+### 2. Tree View + HTML表示構成 ✅
+- **左ペイン（30%）**: Project Tree View
+  - フォルダ名そのまま表示（編集なし）
+  - 階層構造：プロジェクト > ファイル
+  - 展開/折り畳み：▶/▼アイコン
+  - ファイル数バッジ表示
+- **右ペイン（70%）**: HTML Content View
+  - 即座変換・表示（モーダル不要）
+  - スクロール自動リセット（ファイル選択時）
+  - テキスト選択・コピー完全対応
+
+### 3. ナビゲーション・操作 ✅
+- **マウス操作**: 
+  - フォルダクリック → 展開/折り畳み
+  - ファイルクリック → 即座HTML表示
+  - 右クリック → Finderで表示
+- **キーボード操作**:
+  - 矢印キー：Tree View ナビゲーション
+  - Cmd+A：全選択
+  - Cmd+C：コピー
+  - Escape：メニュー閉じる
+
+### 4. プロジェクト管理 ✅
 - **ベースディレクトリ**: `~/.claude/projects`
-- **プロジェクト検出**: フォルダ一覧を表示
-- **エラーハンドリング**: projectsフォルダが存在しない場合はユーザーに通知
+- **自動検出**: 全プロジェクトフォルダの自動読み込み
+- **リアルタイム更新**: 🔄更新ボタンで最新状態反映
+- **エラーハンドリング**: projectsフォルダ不存在時の適切な通知
 
-### 3. ファイル一覧機能
-- **ソート**: クリック可能なカラムヘッダーによるソート
-  - ファイル名順（昇順/降順）
-  - 更新日時順（昇順/降順）- デフォルト：降順（最新が上）
-  - ファイルサイズ順（昇順/降順）
-  - ソート状態をカラムヘッダーに矢印で表示（▲▼）
-- **表示項目**: ファイル名、更新日時、ファイルサイズ
-- **フィルタリング**: jsonl形式のファイルのみ表示
+### 5. HTML表示・テキスト処理 ✅
+- **表示方式**: 右ペイン埋め込み表示
+- **テキスト選択**: 
+  - CSS強制適用：`user-select: text !important`
+  - JavaScript動的設定：全要素にuserSelect適用
+  - 全ブラウザ対応：webkit, moz, ms prefix
+- **ツールバー機能**: 
+  - 📋全選択ボタン
+  - 📄コピーボタン
+  - 📤エクスポート（未実装）
+  - 🔍検索（未実装）
 
-### 4. 変換・表示機能
-- **表示方式**: モーダルウィンドウでHTML表示
-- **モーダル仕様**: 
-  - サイズ: 画面の80%（最小: 800x600px）
-  - 背景: 半透明オーバーレイ
-  - 閉じる方法: Escキー、×ボタン、オーバーレイクリック
-- **プログレス表示**: 大きなjsonlファイル処理時（1MB以上で表示）
-  - 段階ベース: 「準備中...」→「変換中...」→「処理中...」→「完了」
-  - 進捗率は段階ごとに更新（正確な%表示より動作確認を優先）
-- **キャンセル機能**: 処理中断可能（SIGTERM送信）
-- **ナビゲーション**: モーダル内で前後のファイルに移動可能
-- **キャッシュシステム**: 
-  - 変換済みHTMLをキャッシュ
-  - jsonl更新時（mtime変更）はキャッシュ無効化
-  - キャッシュ場所: `~/Library/Application Support/Claude Code Viewer/cache`（macOS）
-  - キャッシュファイル名: `${projectName}_${fileHash}.html`
+### 6. 変換品質・フィルタリング ✅
+- **システムメッセージ除外**: 
+  - `system-reminder`
+  - `<command-name>`
+  - `<local-command-stdout>`
+  - `Caveat: The messages below`
+  - `Plan mode is active`
+  - `Background Bash`
+- **メタ情報処理**: `isMeta: true`エントリの適切除外
+- **出力内容**: 実際の日本語会話のみ（コマンド結果等は除外）
 
-### 5. エクスポート機能
-- **HTML**: 生成したHTMLファイルをエクスポート
-- **PDF**: HTML→PDF変換（Electronの`webContents.printToPDF()`使用）
-- **形式選択**: ダイアログでHTML/PDFを選択
-- **保存先**: システムの「ダウンロード」フォルダがデフォルト
-- **ファイル名**: `claude-conversation-${sessionId}-${date}.{html|pdf}`
+## 技術仕様
 
-### 6. エラーハンドリング
-- claude-conversation-extractor実行失敗時の通知
-- ファイル読み込みエラーの処理
-- 変換処理中のエラー通知
-- バイナリファイル不足時の警告
+### アーキテクチャ
+- **Electron 27.1.0**: クロスプラットフォーム対応
+- **TypeScript 5.3.0**: 型安全な開発環境
+- **内蔵変換エンジン**: `src/lib/claudeExtractor.ts`
+- **2ペインレイアウト**: Flexbox + CSS Grid
 
-### 7. テーマシステム
-- **自動切り替え**: システム設定（ダーク/ライト）に連動
-- **API**: `nativeTheme.shouldUseDarkColors`
-- **CSS変数**: テーマごとのカラーパレット定義
-- **リアルタイム切り替え**: システム設定変更を即座に反映
-
-### 8. 更新・リロード機能
-- **手動リロード**: メニューまたはキーボードショートカット（Cmd+R）
-- **プロジェクト一覧更新**: 新しいプロジェクト検出
-- **ファイル一覧更新**: 新しいjsonlファイル検出
-- **自動更新チェック**: アプリ起動時にGitHub Releasesをチェック
-
-## 技術スタック
-- **フレームワーク**: Electron
-- **言語**: TypeScript
-- **UI**: HTML/CSS（既存デザイン踏襲）
-- **変換ツール**: claude-conversation-extractor（PyInstallerでバイナリ化）
-- **HTML生成**: 自前実装（TypeScript）
-- **ビルドツール**: electron-builder
-- **テーマ**: システム設定連動（ダーク/ライト）
-- **自動更新**: electron-updater（GitHub Releases）
-
-## 配布・更新
-### 1. 配布方法
-- **プラットフォーム**: macOS (.dmg)
-- **配布先**: GitHub Releases
-- **ダウンロード**: 手動ダウンロード
-
-### 2. 自動更新
-- **ライブラリ**: electron-updater
-- **更新チェック**: アプリ起動時
-- **更新ソース**: GitHub Releases API
-- **更新プロセス**: バックグラウンドダウンロード→再起動時適用
-
-### 3. claude-conversation-extractor組み込み
-- **バイナリ化**: PyInstaller使用
-- **配置場所**: `resources/bin/claude-logs`（macOS）
-- **実行方法**: child_process.spawn()
-- **ライセンス表記**: アプリ内「About」画面に記載
-
-## 開発・ビルド設定
-### 1. プロジェクト構成
+### ファイル構成
 ```
-ClaudeViewer/
-├── src/
-│   ├── main/           # メインプロセス
-│   ├── renderer/       # レンダラープロセス
-│   └── shared/         # 共通ライブラリ
-├── resources/
-│   └── bin/
-│       └── claude-logs # バイナリ
-├── dist/              # ビルド出力
-└── package.json
+src/
+├── main/main.ts           # メインプロセス（588行、25%削減済み）
+├── lib/claudeExtractor.ts # TypeScript版変換エンジン
+└── renderer/              # Tree View + HTML表示UI
+    ├── index.html         # Tree View構成
+    ├── renderer.ts        # Tree管理・HTML表示ロジック
+    └── styles.css         # Tree View + HTML表示スタイル
 ```
 
-### 2. electron-builder設定
-```json
-{
-  "build": {
-    "appId": "com.example.claude-viewer",
-    "productName": "Claude Code Viewer",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "src/**/*",
-      "resources/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "target": "dmg"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "your-username",
-      "repo": "claude-viewer"
-    }
-  }
-}
-```
+### パフォーマンス特性
+- **起動時間**: 外部プロセス不要により高速化
+- **変換速度**: 直接TypeScript実行
+- **メモリ使用**: 270MBバイナリ削除により軽量化
+- **出力サイズ**: 元版準拠の適切なサイズ（98%削減成功）
 
+## 未実装機能
+
+### Phase 8: エクスポート機能
+- **HTML出力**: 変換済みHTMLファイルの保存
+- **PDF変換**: Electronの`printToPDF()`使用
+
+### Phase 9: 設定・検索機能
+- **検索機能**: ファイル内容検索
+- **設定画面**: テーマ、パス設定等
+- **キャッシュ管理**: 手動キャッシュクリア
+
+### Phase 10: 配布準備
+- **electron-builder**: .dmgパッケージ作成
+- **自動更新**: electron-updater統合
+
+## 開発環境
+
+### ビルド・開発コマンド
+- `npm run dev`: 開発モードで起動
+- `npm run build`: TypeScript + Webpack ビルド
+- `npm run clean`: ビルド成果物クリーンアップ
+
+### 依存関係
+- **削除済み**: Python環境、PyInstallerバイナリ
+- **現在**: TypeScript、Webpack、Electronのみ
+
+## 品質保証
+
+### テスト済み機能
+- ✅ Tree View階層表示・ナビゲーション
+- ✅ 即座HTML変換・表示
+- ✅ テキスト選択・コピー機能
+- ✅ 元版準拠の出力品質（23KB）
+- ✅ スクロールリセット機能
+- ✅ フォルダ名そのまま表示

@@ -169,34 +169,10 @@ class ClaudeViewer {
           .filter(entry => entry.isDirectory())
           .map(entry => {
             const fullPath = path.join(claudeProjectsPath, entry.name);
-            // 共通パス部分を除去してクリーンな名前を生成
-            let cleanName = entry.name;
             
-            // ユーザーパスやDocuments/Projectパスのパターンを除去
-            const userHome = os.homedir();
-            const pathPattern = new RegExp(`^.*?${path.sep}([^${path.sep}]+)$`);
-            
-            // パスの最後の部分のみを取得（実際のプロジェクト名）
-            const match = fullPath.match(pathPattern);
-            if (match && match[1]) {
-              cleanName = match[1];
-            }
-            
-            // 実際のプロジェクト名パターンに基づく除去
-            // 例: "-Users-junpeiwada-Documents-Project-HLGTimeLapse" → "HLGTimeLapse"
-            cleanName = cleanName
-              .replace(/^-?Users-[^-]+-Documents-Project-/, '') // -Users-username-Documents-Project- を除去
-              .replace(/^-?[^-]+-Documents-Project-/, '') // -username-Documents-Project- を除去
-              .replace(/^-?Documents-Project-/, '') // -Documents-Project- を除去
-              .replace(/^-/, ''); // 先頭の - を除去
-            
-            // もし空になった場合は元の名前を使用
-            if (!cleanName) {
-              cleanName = entry.name;
-            }
-            
+            // フォルダ名をそのまま使用（編集なし）
             return {
-              name: cleanName,
+              name: entry.name,
               path: fullPath
             };
           })
@@ -466,6 +442,17 @@ class ClaudeViewer {
         box-sizing: border-box;
       }
 
+      /* 全てのテキスト要素のマージンをリセット */
+      p, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, div {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* 必要最小限の余白のみ */
+      p + p, li, h1, h2, h3, h4, h5, h6 {
+        margin-top: 0.25rem !important;
+      }
+
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: linear-gradient(to bottom, #e0f2fe, #f0f9ff);
@@ -491,21 +478,21 @@ class ClaudeViewer {
       .container {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 2rem;
+        padding: 1rem;
       }
 
       .conversation {
         background: white;
         border-radius: 1rem;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        padding: 2rem;
+        padding: 1rem;
       }
 
       .message {
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.5rem;
         display: flex;
         align-items: flex-start;
-        gap: 1rem;
+        gap: 0.75rem;
         animation: fadeIn 0.3s ease-in;
       }
 
@@ -549,11 +536,27 @@ class ClaudeViewer {
 
       .message-bubble {
         display: inline-block;
-        padding: 1rem 1.25rem;
+        padding: 0.5rem 0.75rem;
         border-radius: 1rem;
         background: #f3f4f6;
         position: relative;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        line-height: 1.4;
+      }
+
+      /* メッセージバブル内の全要素の余白を最小限に */
+      .message-bubble * {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
+      }
+
+      /* 連続するテキスト要素間のみ最小の余白 */
+      .message-bubble p + p,
+      .message-bubble p + div,
+      .message-bubble div + p,
+      .message-bubble div + div {
+        margin-top: 0.125rem !important;
       }
 
       .message.user .message-bubble {

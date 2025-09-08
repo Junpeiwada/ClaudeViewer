@@ -14,6 +14,16 @@ interface ConversationFile {
   mtime: Date;
 }
 
+interface TreeNode {
+  id: string;
+  name: string;
+  type: 'project' | 'file';
+  expanded?: boolean;
+  children?: TreeNode[];
+  filePath?: string;
+  fileData?: ConversationFile;
+}
+
 // アプリケーション状態
 let projects: Project[] = [];
 let selectedProject: Project | null = null;
@@ -21,6 +31,12 @@ let selectedFile: ConversationFile | null = null;
 let currentSort = { column: 'date', ascending: false };
 let currentFiles: ConversationFile[] = [];
 let contextMenuTarget: { path: string; isFile: boolean } | null = null;
+
+// Tree View用の状態管理
+let treeData: TreeNode[] = [];
+let selectedNode: TreeNode | null = null;
+let currentHtmlContent: string = '';
+let isConverting: boolean = false;
 
 // ステータス更新
 function updateStatus(message: string): void {
@@ -48,16 +64,12 @@ function updateSelectionInfo(): void {
   selectionElement.textContent = info;
 }
 
-// プロジェクト一覧読み込み
-async function loadProjects(): Promise<void> {
-  const projectList = document.getElementById('project-list');
-  if (!projectList) return;
-
+// Tree構造の構築
+async function buildTreeStructure(): Promise<void> {
   try {
-    updateStatus('プロジェクト検索中...');
+    updateStatus('Tree構造構築中...');
     projects = await window.electronAPI.getProjects();
-    projectList.innerHTML = '';
-
+    
     if (projects.length === 0) {
       await window.electronAPI.showErrorDialog(
         'Claude Projectsが見つかりません',
@@ -67,52 +79,256 @@ async function loadProjects(): Promise<void> {
       return;
     }
 
-    projects.forEach(project => {
-      const projectElement = document.createElement('div');
-      projectElement.className = 'project-item';
-      projectElement.innerHTML = `
-        <span class="project-icon">📁</span>
-        <span class="project-name">${project.name}</span>
-      `;
+    // Tree構造データを構築
+    treeData = [];
+    for (const project of projects) {
+      const projectNode: TreeNode = {
+        id: `project-${project.name}`,
+        name: project.name,
+        type: 'project',
+        expanded: false,
+        children: [],
+        filePath: project.path
+      };
 
-      projectElement.addEventListener('click', () => {
-        selectProject(project);
-      });
+      // プロジェクト内のファイルを取得
+      const files = await window.electronAPI.getProjectFiles(project.path);
+      for (const file of files) {
+        const fileNode: TreeNode = {
+          id: `file-${project.name}-${file.name}`,
+          name: file.name,
+          type: 'file',
+          filePath: file.fullPath,
+          fileData: file
+        };
+        projectNode.children!.push(fileNode);
+      }
 
-      projectElement.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        showContextMenu(e.clientX, e.clientY, project.path, false);
-      });
+      treeData.push(projectNode);
+    }
 
-      projectList.appendChild(projectElement);
-    });
-
+    renderTreeView();
     updateStatus(`${projects.length}個のプロジェクトが見つかりました`);
     setTimeout(() => updateStatus('Ready'), 1500);
   } catch (error) {
-    console.error('Error loading projects:', error);
-    updateStatus('プロジェクト読み込みエラー');
+    console.error('Error building tree structure:', error);
+    updateStatus('Tree構築エラー');
   }
 }
 
-// プロジェクト選択
-async function selectProject(project: Project): Promise<void> {
-  selectedProject = project;
-  selectedFile = null;
+// 古いloadProjects関数は削除（Tree View版で置換済み）
 
-  document.querySelectorAll('.project-item').forEach(item => {
-    item.classList.remove('selected');
-  });
+// Tree View描画
+function renderTreeView(): void {
+  const projectList = document.getElementById('project-list');
+  if (!projectList) return;
 
-  const projectElements = Array.from(document.querySelectorAll('.project-item'));
-  const selectedElement = projectElements.find(element =>
-    element.querySelector('.project-name')?.textContent === project.name
-  );
-  selectedElement?.classList.add('selected');
-
-  await loadFiles();
-  updateSelectionInfo();
+  projectList.innerHTML = '';
+  
+  for (const node of treeData) {
+    const projectElement = createTreeNodeElement(node);
+    projectList.appendChild(projectElement);
+  }
 }
+
+// Tree Node要素作成
+function createTreeNodeElement(node: TreeNode): HTMLElement {
+  const nodeElement = document.createElement('div');
+  nodeElement.className = `tree-node tree-${node.type}`;
+  nodeElement.setAttribute('data-node-id', node.id);
+  
+  if (node.type === 'project') {
+    // プロジェクトノード
+    const expandIcon = node.expanded ? '📂' : '📁';
+    const expanderClass = node.expanded ? 'expanded' : 'collapsed';
+    const fileCount = node.children?.length || 0;
+    
+    nodeElement.innerHTML = `
+      <div class="tree-node-content project-node">
+        <span class="tree-expander ${expanderClass}">${node.expanded ? '▼' : '▶'}</span>
+        <span class="tree-icon">${expandIcon}</span>
+        <span class="tree-label">${node.name}</span>
+        <span class="tree-badge">${fileCount}</span>
+      </div>
+    `;
+    
+    // 展開/折り畳みイベント
+    const expanderElement = nodeElement.querySelector('.tree-expander');
+    expanderElement?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleProjectExpansion(node);
+    });
+    
+    // プロジェクト選択イベント
+    nodeElement.addEventListener('click', () => {
+      selectTreeProject(node);
+    });
+    
+    // 子ノード（ファイル）の描画
+    if (node.expanded && node.children) {
+      const childrenContainer = document.createElement('div');
+      childrenContainer.className = 'tree-children';
+      
+      for (const child of node.children) {
+        const childElement = createTreeNodeElement(child);
+        childrenContainer.appendChild(childElement);
+      }
+      
+      nodeElement.appendChild(childrenContainer);
+    }
+  } else {
+    // ファイルノード
+    const fileData = node.fileData;
+    const sessionId = node.name.substring(0, 8);
+    
+    nodeElement.innerHTML = `
+      <div class="tree-node-content file-node ${selectedNode?.id === node.id ? 'selected' : ''}">
+        <span class="tree-indent"></span>
+        <span class="tree-icon">📄</span>
+        <span class="tree-label">${sessionId}...</span>
+        <span class="tree-meta">${fileData?.date || ''}</span>
+      </div>
+    `;
+    
+    // ファイル選択イベント
+    nodeElement.addEventListener('click', () => {
+      selectTreeFile(node);
+    });
+    
+    // 右クリックメニュー
+    nodeElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e.clientX, e.clientY, node.filePath || '', true);
+    });
+  }
+  
+  return nodeElement;
+}
+
+// プロジェクトの展開/折り畳み
+function toggleProjectExpansion(projectNode: TreeNode): void {
+  projectNode.expanded = !projectNode.expanded;
+  renderTreeView();
+}
+
+// Tree経由でのプロジェクト選択
+function selectTreeProject(projectNode: TreeNode): void {
+  if (!projectNode.expanded) {
+    projectNode.expanded = true;
+    renderTreeView();
+  }
+}
+
+// Tree経由でのファイル選択
+async function selectTreeFile(fileNode: TreeNode): Promise<void> {
+  if (isConverting) return; // 変換中は無視
+  
+  // 前の選択をクリア
+  if (selectedNode) {
+    selectedNode = null;
+  }
+  
+  selectedNode = fileNode;
+  renderTreeView(); // 選択状態の更新
+  
+  if (fileNode.fileData) {
+    await displayHtmlInline(fileNode.fileData);
+  }
+}
+
+// インラインHTML表示（新機能）
+async function displayHtmlInline(file: ConversationFile): Promise<void> {
+  if (isConverting) return;
+  
+  try {
+    isConverting = true;
+    updateStatus(`🔄 変換中: ${file.name}`);
+    
+    const htmlContentArea = document.getElementById('html-content-area');
+    if (!htmlContentArea) return;
+    
+    // 即座変換・表示
+    const mdResult = await window.electronAPI.convertJsonlToMd(file.fullPath);
+    
+    if (mdResult.success && mdResult.mdContent) {
+      const messageCount = (mdResult.mdContent.match(/## 👤|## 🤖/g) || []).length;
+      updateStatus(`🎨 HTML変換中: ${file.name} (${messageCount}メッセージ)`);
+      
+      const htmlResult = await window.electronAPI.convertMdToHtml(mdResult.mdContent);
+      
+      if (htmlResult.success && htmlResult.html) {
+        currentHtmlContent = htmlResult.html;
+        htmlContentArea.innerHTML = htmlResult.html;
+        
+        // スクロール位置を一番上にリセット
+        htmlContentArea.scrollTop = 0;
+        htmlContentArea.scrollLeft = 0;
+        
+        // より確実なスクロールリセット（複数レベル）
+        setTimeout(() => {
+          htmlContentArea.scrollTo(0, 0);
+          
+          // 親コンテナもリセット
+          const container = htmlContentArea.parentElement;
+          if (container) {
+            container.scrollTop = 0;
+            container.scrollLeft = 0;
+          }
+          
+          // HTML内部のbody要素もリセット
+          const bodyElement = htmlContentArea.querySelector('body');
+          if (bodyElement) {
+            bodyElement.scrollTo(0, 0);
+          }
+          
+          console.log('✅ Scroll position reset to top');
+        }, 50);
+        
+        // テキスト選択を有効化
+        enableTextSelection(htmlContentArea);
+        
+        updateStatus(`✅ 表示完了: ${file.name} (${messageCount}メッセージ)`);
+        updateSelectionInfo();
+        setTimeout(() => updateStatus('Ready'), 2000);
+      } else {
+        throw new Error(htmlResult.error || 'HTML変換に失敗しました');
+      }
+    } else {
+      throw new Error(mdResult.error || 'JSONL変換に失敗しました');
+    }
+  } catch (error) {
+    console.error('Inline HTML display error:', error);
+    updateStatus('❌ 変換エラー');
+    const htmlContentArea = document.getElementById('html-content-area');
+    if (htmlContentArea) {
+      htmlContentArea.innerHTML = `<div class="error-message">変換エラー: ${error.message}</div>`;
+    }
+  } finally {
+    isConverting = false;
+  }
+}
+
+// HTML領域のテキスト選択有効化
+function enableTextSelection(element: HTMLElement): void {
+  element.style.userSelect = 'text';
+  (element.style as any).webkitUserSelect = 'text';
+  (element.style as any).mozUserSelect = 'text';
+  (element.style as any).msUserSelect = 'text';
+  
+  // すべての子要素にも適用
+  const allElements = element.querySelectorAll('*');
+  allElements.forEach(el => {
+    const htmlEl = el as HTMLElement;
+    if (!htmlEl.matches('button, .btn, summary')) {
+      htmlEl.style.userSelect = 'text';
+      (htmlEl.style as any).webkitUserSelect = 'text';
+      (htmlEl.style as any).mozUserSelect = 'text';
+      (htmlEl.style as any).msUserSelect = 'text';
+    }
+  });
+}
+
+// 古いloadProjects関数は削除済み（Tree View版で置換）
 
 // ファイル一覧読み込み
 async function loadFiles(): Promise<void> {
@@ -399,7 +615,47 @@ function selectAllModalContent(): void {
   }
 }
 
-// 選択されたモーダル内容をクリップボードにコピー
+// HTML領域の全選択
+function selectAllHtmlContent(): void {
+  const htmlContentArea = document.getElementById('html-content-area');
+  if (htmlContentArea) {
+    const range = document.createRange();
+    range.selectNodeContents(htmlContentArea);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    
+    updateStatus('📋 全選択完了 (Cmd+C でコピー)');
+    setTimeout(() => updateStatus('Ready'), 2000);
+    console.log('✅ HTML content selected');
+  }
+}
+
+// HTML領域の選択内容をコピー
+function copySelectedHtmlContent(): void {
+  try {
+    if (window.getSelection()?.toString()) {
+      document.execCommand('copy');
+      
+      const selectedText = window.getSelection()?.toString();
+      const charCount = selectedText?.length || 0;
+      
+      updateStatus(`✅ コピー完了 (${charCount}文字)`);
+      setTimeout(() => updateStatus('Ready'), 2000);
+      
+      console.log(`✅ Copied ${charCount} characters to clipboard`);
+    } else {
+      updateStatus('⚠️ テキストが選択されていません');
+      setTimeout(() => updateStatus('Ready'), 1500);
+    }
+  } catch (error) {
+    console.error('Copy failed:', error);
+    updateStatus('❌ コピーエラー');
+    setTimeout(() => updateStatus('Ready'), 1500);
+  }
+}
+
+// 選択されたモーダル内容をクリップボードにコピー（後方互換性）
 function copySelectedModalContent(): void {
   try {
     if (window.getSelection()?.toString()) {
@@ -421,6 +677,39 @@ function copySelectedModalContent(): void {
     console.error('Copy failed:', error);
     updateStatus('❌ コピーエラー');
     setTimeout(() => updateStatus('Ready'), 1500);
+  }
+}
+
+// Tree Viewキーボードナビゲーション
+function navigateTreeWithKeyboard(moveDown: boolean): void {
+  if (treeData.length === 0) return;
+  
+  // 全てのナビゲート可能なノードを取得
+  const allNodes: TreeNode[] = [];
+  for (const project of treeData) {
+    allNodes.push(project);
+    if (project.expanded && project.children) {
+      allNodes.push(...project.children);
+    }
+  }
+  
+  if (allNodes.length === 0) return;
+  
+  let currentIndex = selectedNode ? allNodes.findIndex(node => node.id === selectedNode!.id) : -1;
+  
+  if (moveDown) {
+    currentIndex = currentIndex < allNodes.length - 1 ? currentIndex + 1 : 0;
+  } else {
+    currentIndex = currentIndex > 0 ? currentIndex - 1 : allNodes.length - 1;
+  }
+  
+  const newSelectedNode = allNodes[currentIndex];
+  
+  if (newSelectedNode.type === 'file') {
+    selectTreeFile(newSelectedNode);
+  } else {
+    selectedNode = newSelectedNode;
+    renderTreeView();
   }
 }
 
@@ -449,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshBtn?.addEventListener('click', async () => {
     updateStatus('更新中...');
     try {
-      await loadProjects();
+      await buildTreeStructure(); // 新しいTree構造で更新
       updateStatus('更新完了');
       setTimeout(() => updateStatus('Ready'), 1000);
     } catch (error) {
@@ -525,16 +814,58 @@ document.addEventListener('DOMContentLoaded', () => {
       hideHtmlModal();
     }
     
-    // HTMLモーダル表示中のキーボードショートカット
+    // Tree View・HTML表示エリア用のキーボードショートカット
+    const htmlContentArea = document.getElementById('html-content-area');
+    
+    // 全画面でのショートカット
+    if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+      // Cmd+A: HTML表示エリアが存在し、ウェルカム画面でない場合
+      if (htmlContentArea && !htmlContentArea.querySelector('.welcome-html')) {
+        e.preventDefault();
+        selectAllHtmlContent();
+      }
+    }
+    
+    if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+      // Cmd+C: コピー
+      if (htmlContentArea && !htmlContentArea.querySelector('.welcome-html')) {
+        copySelectedHtmlContent();
+      }
+    }
+    
+    // Tree View ナビゲーション
+    if (treeData.length > 0) {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        navigateTreeWithKeyboard(e.key === 'ArrowDown');
+      }
+      
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (selectedNode && selectedNode.type === 'file') {
+          e.preventDefault();
+          // 既に選択済みの場合は何もしない（重複防止）
+        }
+      }
+      
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (selectedNode && selectedNode.type === 'project') {
+          e.preventDefault();
+          const shouldExpand = e.key === 'ArrowRight';
+          if (selectedNode.expanded !== shouldExpand) {
+            toggleProjectExpansion(selectedNode);
+          }
+        }
+      }
+    }
+    
+    // HTMLモーダル表示中のキーボードショートカット（後方互換性）
     const htmlModal = document.getElementById('html-modal');
     if (htmlModal && htmlModal.style.display === 'block') {
-      // Cmd+A (全選択) - macOS
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
         selectAllModalContent();
       }
       
-      // Cmd+C (コピー) - 選択されたテキストをクリップボードにコピー
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
         copySelectedModalContent();
       }
@@ -547,7 +878,31 @@ document.addEventListener('DOMContentLoaded', () => {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
   }
 
-  // アプリ初期化
-  loadProjects();
+  // 新しいHTMLツールバーのイベント
+  const htmlSelectAll = document.getElementById('html-select-all');
+  const htmlCopy = document.getElementById('html-copy');
+  const htmlExport = document.getElementById('html-export');
+  const htmlSearch = document.getElementById('html-search');
+
+  htmlSelectAll?.addEventListener('click', () => {
+    selectAllHtmlContent();
+  });
+
+  htmlCopy?.addEventListener('click', () => {
+    copySelectedHtmlContent();
+  });
+
+  htmlExport?.addEventListener('click', () => {
+    updateStatus('エクスポート機能（未実装）');
+    setTimeout(() => updateStatus('Ready'), 1000);
+  });
+
+  htmlSearch?.addEventListener('click', () => {
+    updateStatus('検索機能（未実装）');
+    setTimeout(() => updateStatus('Ready'), 1000);
+  });
+
+  // アプリ初期化（Tree View版）
+  buildTreeStructure();
   updateStatus('Ready');
 });
