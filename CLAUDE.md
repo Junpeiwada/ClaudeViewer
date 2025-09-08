@@ -52,6 +52,7 @@ dist/               # コンパイル済み出力ディレクトリ
 - **TypeScript 5.3.0** - 型安全なJavaScript開発
 - **ESLint + Prettier** - コード品質とフォーマット
 - **electron-builder** - アプリのパッケージ化と配布
+- **claude-conversation-extractor** - JSONL会話ログ抽出ツール（pipx経由）
 
 ### アプリケーションアーキテクチャ
 
@@ -134,6 +135,24 @@ dist/
 - **ナビゲーション**: [◀][▶]で前後ファイル移動
 - **プログレス表示**: 4段階（準備→変換→処理→完了）
 - **キーボードショートカット**: Cmd+R（更新）、Escape（閉じる）等
+
+## claude-conversation-extractorセットアップ
+
+### インストール（初回のみ）
+```bash
+# pipxのインストール
+brew install pipx
+pipx ensurepath
+
+# claude-conversation-extractorのインストール
+pipx install claude-conversation-extractor
+```
+
+### 使用可能コマンド
+- `claude-extract --list` - セッション一覧表示
+- `claude-extract --extract 1` - 最新セッション抽出
+- `claude-extract --recent 5` - 最新5セッション抽出
+- `claude-extract --all` - 全セッション抽出
 
 ## 開発メモ
 
