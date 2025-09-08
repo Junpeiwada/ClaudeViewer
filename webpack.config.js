@@ -50,10 +50,6 @@ module.exports = {
           from: './src/renderer/conversation.css',
           to: 'conversation.css',
         },
-        {
-          from: './src/renderer/chat-simple.css',
-          to: 'chat-simple.css',
-        },
       ],
     }),
   ],
