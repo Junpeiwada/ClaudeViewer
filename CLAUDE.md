@@ -28,6 +28,55 @@
 - `npm run dist:mac` - macOS .dmgパッケージを作成
 - `npm run clean` - distディレクトリをクリーン
 
+### macOS DMGパッケージ作成手順
+
+#### 1. ユニバーサルバイナリDMG作成
+```bash
+# フルビルドとDMGパッケージ作成
+npm run dist:mac
+
+# 出力ファイル: dist/build/Claude Code Viewer-1.0.0-universal.dmg
+# サイズ: 約170MB (Intel + Apple Silicon両対応)
+```
+
+#### 2. 生成される配布ファイル
+- **メイン配布ファイル**: `Claude Code Viewer-1.0.0-universal.dmg`
+  - ユニバーサルバイナリ（Intel Mac + Apple Silicon対応）
+  - 署名済み（macOSセキュリティ対応）
+  - macOS 10.15 (Catalina) 以降で動作
+- **Block Map**: `.dmg.blockmap`（差分更新用、自動生成）
+
+#### 3. ビルド設定詳細
+```json
+{
+  "mac": {
+    "target": { "target": "dmg", "arch": "universal" },
+    "mergeASARs": true,
+    "category": "public.app-category.developer-tools",
+    "icon": "icon/ClaudeViewer.icns"
+  }
+}
+```
+
+#### 4. 必要な前提条件
+- **Node.js 18+** インストール済み
+- **Xcode Command Line Tools** インストール済み
+- **開発者証明書** (任意、署名用)
+- **アイコンファイル**: `icon/ClaudeViewer.icns` 配置済み
+
+#### 5. 配布ファイルのクリーンアップ
+```bash
+# 不要なビルドファイル削除（ユニバーサル版のみ保持）
+cd dist/build
+ls -la  # 配布ファイル確認
+# 残すファイル: Claude Code Viewer-1.0.0-universal.dmg のみ
+```
+
+#### 6. 配布・インストール
+- **配布方法**: DMGファイルをWebサイト・GitHubリリース等で公開
+- **ユーザー側**: DMGダブルクリック → Applicationsフォルダにドラッグ
+- **対応環境**: Intel Mac・Apple Silicon Mac両方で同一ファイル使用可能
+
 ## アーキテクチャ概要
 
 このプロジェクトは、Claude Codeの会話ログ（JSONLファイル）をHTML表示機能付きで閲覧するElectronアプリケーションです。以下のドキュメントに従って開発されています:

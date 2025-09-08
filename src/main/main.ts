@@ -4,6 +4,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { ClaudeExtractor } from '../lib/claudeExtractor';
 
+// fsSync for icon file existence check
+const fsSync = fs;
+
 class ClaudeViewer {
   private mainWindow: BrowserWindow | null = null;
 
@@ -15,14 +18,35 @@ class ClaudeViewer {
     // アプリの準備完了まで待機
     await app.whenReady();
 
-    // メインウィンドウを作成
-    this.createMainWindow();
+    try {
+      // Dockアイコンを設定（macOS）- PNGファイルを使用
+      if (process.platform === 'darwin' && app.dock) {
+        const dockIconPath = path.join(__dirname, '../../../icon', 'ClaudeViewer.png');
+        
+        if (fsSync.existsSync(dockIconPath)) {
+          try {
+            app.dock.setIcon(dockIconPath);
+            console.log('Dockアイコンを設定しました:', dockIconPath);
+          } catch (iconError) {
+            console.error('Dockアイコン設定エラー:', iconError);
+          }
+        } else {
+          console.warn('Dockアイコンファイルが見つかりません:', dockIconPath);
+        }
+      }
 
-    // アプリメニューを設定
-    this.setupMenu();
+      // メインウィンドウを作成
+      this.createMainWindow();
 
-    // IPCハンドラを設定
-    this.setupIPCHandlers();
+      // アプリメニューを設定
+      this.setupMenu();
+
+      // IPCハンドラを設定
+      this.setupIPCHandlers();
+    } catch (error) {
+      console.error('アプリケーション起動エラー:', error);
+      app.quit();
+    }
 
     // macOSでのウィンドウ管理（不要 - ウィンドウが閉じたらアプリ終了）
     // app.on('activate', () => {
@@ -49,6 +73,19 @@ class ClaudeViewer {
   }
 
   private createMainWindow(): void {
+    // プラットフォーム別アイコンパスを設定
+    const iconPath = process.platform === 'darwin' 
+      ? path.join(__dirname, '../../../icon', 'ClaudeViewer.icns')
+      : path.join(__dirname, '../../../icon', 'ClaudeViewer.ico');
+
+    // アイコンファイル存在確認
+    const iconExists = fsSync.existsSync(iconPath);
+    if (iconExists) {
+      console.log('ウィンドウアイコンを設定:', iconPath);
+    } else {
+      console.warn('ウィンドウアイコンファイルが見つかりません:', iconPath);
+    }
+
     // メインウィンドウの作成
     this.mainWindow = new BrowserWindow({
       width: 1200,
@@ -56,6 +93,7 @@ class ClaudeViewer {
       minWidth: 800,
       minHeight: 600,
       titleBarStyle: 'default',
+      icon: iconExists ? iconPath : undefined, // アイコンファイルがある場合のみ設定
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -279,6 +317,44 @@ class ClaudeViewer {
         return { success: false, error: `変換エラー: ${error}` };
       }
     });
+
+    // HTMLファイルエクスポート
+    ipcMain.handle('export-html', async (_, htmlContent: string, fileName: string) => {
+      try {
+        if (!this.mainWindow) {
+          throw new Error('メインウィンドウが見つかりません');
+        }
+
+        // ファイル保存ダイアログ
+        const result = await dialog.showSaveDialog(this.mainWindow, {
+          title: 'HTMLファイルとして保存',
+          defaultPath: fileName,
+          filters: [
+            { name: 'HTML Files', extensions: ['html'] }
+          ]
+        });
+
+        if (result.canceled || !result.filePath) {
+          return { success: false, error: 'キャンセルされました' };
+        }
+
+        // HTMLファイルを保存
+        fs.writeFileSync(result.filePath, htmlContent, 'utf-8');
+        
+        return { 
+          success: true, 
+          filePath: result.filePath,
+          message: 'HTMLファイルを保存しました'
+        };
+      } catch (error) {
+        console.error('HTMLエクスポートエラー:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : `エクスポートエラー: ${error}`
+        };
+      }
+    });
+
   }
 
   // Markdown→HTML変換（Claude会話スタイル）

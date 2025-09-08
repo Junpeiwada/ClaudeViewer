@@ -1,0 +1,67 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#1e40af" stroke="#1d4ed8" stroke-width="4"/>
+  
+  <!-- Robot head (main body) -->
+  <rect x="160" y="140" width="192" height="160" rx="24" ry="24" fill="#f8fafc" stroke="#64748b" stroke-width="3"/>
+  
+  <!-- Robot antenna -->
+  <line x1="256" y1="140" x2="256" y2="100" stroke="#64748b" stroke-width="4"/>
+  <circle cx="256" cy="96" r="8" fill="#ef4444"/>
+  
+  <!-- Robot eyes -->
+  <circle cx="200" cy="180" r="16" fill="#1e40af"/>
+  <circle cx="312" cy="180" r="16" fill="#1e40af"/>
+  <circle cx="200" cy="180" r="8" fill="#60a5fa"/>
+  <circle cx="312" cy="180" r="8" fill="#60a5fa"/>
+  
+  <!-- Robot mouth/speaker -->
+  <rect x="220" y="220" width="72" height="32" rx="16" ry="16" fill="#64748b"/>
+  <rect x="224" y="224" width="64" height="24" rx="12" ry="12" fill="#374151"/>
+  
+  <!-- Speaker grilles -->
+  <line x1="230" y1="228" x2="230" y2="244" stroke="#6b7280" stroke-width="2"/>
+  <line x1="240" y1="228" x2="240" y2="244" stroke="#6b7280" stroke-width="2"/>
+  <line x1="250" y1="228" x2="250" y2="244" stroke="#6b7280" stroke-width="2"/>
+  <line x1="260" y1="228" x2="260" y2="244" stroke="#6b7280" stroke-width="2"/>
+  <line x1="270" y1="228" x2="270" y2="244" stroke="#6b7280" stroke-width="2"/>
+  <line x1="280" y1="228" x2="280" y2="244" stroke="#6b7280" stroke-width="2"/>
+  
+  <!-- Robot arms -->
+  <rect x="120" y="180" width="40" height="80" rx="20" ry="20" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <rect x="352" y="180" width="40" height="80" rx="20" ry="20" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- Robot hands -->
+  <circle cx="140" cy="280" r="18" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+  <circle cx="372" cy="280" r="18" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- Robot body (torso) -->
+  <rect x="180" y="300" width="152" height="120" rx="20" ry="20" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>
+  
+  <!-- Control panel -->
+  <rect x="200" y="320" width="112" height="80" rx="8" ry="8" fill="#1f2937"/>
+  
+  <!-- Control buttons -->
+  <circle cx="220" cy="340" r="6" fill="#22c55e"/>
+  <circle cx="240" cy="340" r="6" fill="#eab308"/>
+  <circle cx="260" cy="340" r="6" fill="#ef4444"/>
+  
+  <!-- Display screen -->
+  <rect x="210" y="360" width="92" height="30" rx="4" ry="4" fill="#0f172a"/>
+  <rect x="214" y="364" width="84" height="22" rx="2" ry="2" fill="#1e40af"/>
+  
+  <!-- Screen text/display -->
+  <rect x="220" y="370" width="16" height="4" fill="#60a5fa"/>
+  <rect x="240" y="370" width="24" height="4" fill="#60a5fa"/>
+  <rect x="270" y="370" width="20" height="4" fill="#60a5fa"/>
+  <rect x="220" y="378" width="32" height="4" fill="#60a5fa"/>
+  <rect x="260" y="378" width="16" height="4" fill="#60a5fa"/>
+  
+  <!-- Robot legs -->
+  <rect x="200" y="420" width="32" height="60" rx="16" ry="16" fill="#cbd5e1" stroke="#64748b" stroke-width="2"/>
+  <rect x="280" y="420" width="32" height="60" rx="16" ry="16" fill="#cbd5e1" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- Robot feet -->
+  <ellipse cx="216" cy="490" rx="24" ry="12" fill="#94a3b8" stroke="#64748b" stroke-width="2"/>
+  <ellipse cx="296" cy="490" rx="24" ry="12" fill="#94a3b8" stroke="#64748b" stroke-width="2"/>
+</svg>

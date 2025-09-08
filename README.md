@@ -26,6 +26,12 @@
 - **即座変換**: ファイル選択と同時に瞬時変換・表示
 - **高品質フィルタリング**: システムメッセージ除去、実際の会話のみ抽出
 
+### 📤 HTMLエクスポート機能
+- **スタンドアロンHTML**: インラインCSS付きでどこでも表示可能
+- **自動ファイル名**: `Session_{セッションID}_{日付}.html`
+- **システム統合**: ネイティブファイル保存ダイアログ
+- **ワンクリック保存**: 📤ボタンから即座エクスポート
+
 ## 📸 スクリーンショット
 
 ![Claude Code Viewer](Claude_Code_Viewer.png)
@@ -35,16 +41,35 @@
 ### 主要UI要素
 - **左ペイン**: プロジェクト階層・ファイル一覧（サイズ・日付表示）
 - **右ペイン**: チャット風会話表示（ユーザー右・Claude左の明確な区別）
-- **ヘッダー**: 更新・設定ボタン
+- **ヘッダー**: 更新ボタン
+- **ツールバー**: 全選択・コピー・HTMLエクスポート
 - **フッター**: ステータス表示・選択ファイル情報
 
 ## 🚀 クイックスタート
+
+### 📥 バイナリダウンロード（推奨）
+
+**macOS用ユニバーサルバイナリ**（Intel・Apple Silicon両対応）
+
+[![Download](https://img.shields.io/badge/Download-DMG-blue?style=for-the-badge&logo=apple)](dist/build/Claude%20Code%20Viewer-1.0.0-universal.dmg)
+
+- **ファイル**: `Claude Code Viewer-1.0.0-universal.dmg`（170MB）
+- **対応macOS**: 10.15 (Catalina) 以降
+- **CPU**: Intel Mac・Apple Silicon（M1/M2/M3）両対応
+
+#### インストール手順
+1. 上記リンクからDMGファイルをダウンロード
+2. DMGファイルをダブルクリック
+3. Claude Code Viewer.appを「アプリケーション」フォルダにドラッグ
+4. Launchpadまたは「アプリケーション」フォルダから起動
+
+### 🛠️ 開発者向けビルド
 
 ### 前提条件
 - **Node.js 18+** 
 - **Claude Code** 使用済み（`~/.claude/projects` フォルダ存在）
 
-### インストール・起動
+### ソースコードからビルド
 ```bash
 # リポジトリクローン
 git clone https://github.com/yourusername/claude-code-viewer.git
@@ -58,7 +83,7 @@ npm run dev
 
 # または本番ビルド
 npm run build
-npm run dist
+npm run dist:mac  # DMGパッケージ作成
 ```
 
 ### 使い方
@@ -114,35 +139,27 @@ npm run dist             # .dmgパッケージ作成（macOS）
 
 ## 🌟 主な改善点
 
-### Phase 7で実装された最新機能
+### Phase 7-8で実装された最新機能
 - ✅ **会話UI完全再設計**: チャット風の直感的表示
 - ✅ **視覚的区別強化**: ユーザー・Claudeメッセージの明確な分離
 - ✅ **ファイル管理強化**: サイズ表示・日付ソート・Tree View最適化
 - ✅ **エラーハンドリング改善**: 小さなファイルやメタメッセージのみのファイルに対応
 - ✅ **余白最適化**: より多くの会話内容を表示可能
-
-### vs Python版 claude-conversation-extractor
-| 項目 | Python版 | Claude Code Viewer |
-|------|----------|-------------------|
-| **依存関係** | Python + 270MBバイナリ | TypeScript内蔵エンジン |
-| **起動時間** | 数秒 | 瞬時 |
-| **変換速度** | 外部プロセス | 直接実行 |
-| **UI** | コマンドライン | 美しいGUI |
-| **出力品質** | 23KB | 22KB（同等） |
+- ✅ **HTMLエクスポート**: スタンドアロンHTML保存機能
+- ✅ **UI簡素化**: 不要機能削除（PDF・検索・設定）でスッキリした操作感
 
 ## 📋 ロードマップ
 
-### ✅ 完了済み（Phase 1-7）
+### ✅ 完了済み（Phase 1-8）
 - [x] TypeScript + Electron基盤構築
 - [x] Tree View + 会話表示UI
 - [x] プロジェクト・ファイル管理
 - [x] 内蔵TypeScript変換エンジン
 - [x] UI/UX最適化・エラーハンドリング強化
+- [x] HTMLエクスポート機能・UI簡素化
 
 ### 🚀 今後の予定
-- [ ] **Phase 8**: エクスポート機能（HTML/PDF出力）
-- [ ] **Phase 9**: 設定画面・検索機能
-- [ ] **Phase 10**: パッケージング・配布準備
+- [ ] **Phase 10**: パッケージング・配布準備（.dmg作成）
 
 ## 🤝 コントリビューション
 

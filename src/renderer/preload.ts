@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ファイル操作
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
+  
+  // エクスポート機能
+  exportHtml: (htmlContent: string, fileName: string) => ipcRenderer.invoke('export-html', htmlContent, fileName),
 });
 
 // TypeScript用の型定義
@@ -68,6 +71,10 @@ declare global {
         mdContent: string
       ) => Promise<{ success: boolean; html?: string; error?: string }>;
       readFile: (filePath: string) => Promise<string>;
+      exportHtml: (
+        htmlContent: string, 
+        fileName: string
+      ) => Promise<{ success: boolean; filePath?: string; message?: string; error?: string }>;
     };
   }
 }

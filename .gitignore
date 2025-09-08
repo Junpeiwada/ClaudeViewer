@@ -2,8 +2,13 @@
 node_modules/
 
 # Build outputs
-dist/
-build/
+dist/*
+build/*
+
+# 配布用DMGファイルは除外（コミット対象）
+!dist/build/
+!dist/build/*.dmg
+!dist/build/*.dmg.blockmap
 
 # IDE files
 # .vscode/ (keep VSCode settings)

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Claude Code会話ログビューア - JSONLファイルをHTMLで閲覧するElectronアプリ",
   "main": "dist/main/main/main.js",
+  "icon": "icon/ClaudeViewer.icns",
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "npm run build:main && npm run build:renderer",
@@ -53,24 +54,56 @@
     "electron-updater": "^6.1.4"
   },
   "build": {
-    "appId": "com.example.claude-code-viewer",
+    "appId": "com.claudeviewer.app",
     "productName": "Claude Code Viewer",
+    "copyright": "Copyright © 2025 Claude Code Viewer",
     "directories": {
       "output": "dist/build"
     },
     "files": [
       "dist/**/*",
+      "!dist/build/**/*",
       "resources/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": "dmg",
-      "icon": "resources/icon.icns"
+      "target": {
+        "target": "dmg",
+        "arch": "universal"
+      },
+      "icon": "icon/ClaudeViewer.icns",
+      "minimumSystemVersion": "10.15.0",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null,
+      "mergeASARs": true
     },
-    "publish": {
-      "provider": "github",
-      "owner": "your-username",
-      "repo": "claude-code-viewer"
+    "dmg": {
+      "title": "Claude Code Viewer ${version}",
+      "icon": "icon/ClaudeViewer.icns",
+      "background": null,
+      "window": {
+        "width": 600,
+        "height": 400
+      },
+      "contents": [
+        {
+          "x": 150,
+          "y": 200,
+          "type": "file"
+        },
+        {
+          "x": 450,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "icon/ClaudeViewer.ico"
     }
   }
 }

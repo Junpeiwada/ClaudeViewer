@@ -18,9 +18,6 @@
                 <button id="refresh-btn" class="header-btn">
                     <span>🔄</span> 更新
                 </button>
-                <button id="settings-btn" class="header-btn">
-                    <span>⚙️</span> 設定
-                </button>
             </div>
         </header>
         
@@ -44,7 +41,6 @@
                         <button id="html-select-all" class="html-btn" title="全選択 (Cmd+A)">📋</button>
                         <button id="html-copy" class="html-btn" title="選択部分をコピー (Cmd+C)">📄</button>
                         <button id="html-export" class="html-btn" title="エクスポート">📤</button>
-                        <button id="html-search" class="html-btn" title="検索">🔍</button>
                         <div class="html-toolbar-spacer"></div>
                         <span id="html-file-info" class="html-file-info">ファイルを選択してください</span>
                     </div>
@@ -55,8 +51,7 @@
                                 <p>左のTree Viewからファイルを選択すると、ここに会話履歴が表示されます。</p>
                                 <div class="welcome-features">
                                     <div>📋 テキスト選択・コピー対応</div>
-                                    <div>🔍 高速検索機能</div>
-                                    <div>📤 エクスポート機能</div>
+                                    <div>📤 HTMLエクスポート機能</div>
                                 </div>
                             </div>
                         </div>
@@ -101,13 +96,52 @@
                     <button id="modal-select-all" class="modal-btn" title="全選択 (Cmd+A)">📋</button>
                     <button id="modal-copy" class="modal-btn" title="選択部分をコピー (Cmd+C)">📄</button>
                     <button id="modal-export" class="modal-btn" title="エクスポート">📤</button>
-                    <button id="modal-search" class="modal-btn" title="検索">🔍</button>
                     <button id="modal-close" class="modal-btn modal-close" title="閉じる">×</button>
                 </div>
             </div>
             <div class="modal-body">
                 <div id="modal-html-content" class="modal-html-content">
                     <!-- HTMLコンテンツがここに表示される -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- エクスポートダイアログ -->
+    <div id="export-modal" class="export-modal" style="display: none;">
+        <div class="modal-overlay" onclick="hideExportModal()"></div>
+        <div class="export-dialog">
+            <div class="export-header">
+                <h3>📤 エクスポート</h3>
+                <button class="export-close" onclick="hideExportModal()">×</button>
+            </div>
+            <div class="export-body">
+                <div class="export-info">
+                    <div class="export-file-info">
+                        <span class="export-icon">📄</span>
+                        <div class="export-details">
+                            <div id="export-filename" class="export-filename">ファイル名</div>
+                            <div id="export-filesize" class="export-filesize">ファイルサイズ</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="export-format">
+                    <h4>エクスポート形式</h4>
+                    <div class="format-options">
+                        <div class="format-single">
+                            <span class="format-icon">🌐</span>
+                            <span class="format-text">
+                                <div class="format-name">HTML</div>
+                                <div class="format-desc">スタンドアロンHTMLファイル - どこでも開けます</div>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="export-actions">
+                    <button id="export-cancel" class="export-btn export-cancel">キャンセル</button>
+                    <button id="export-save" class="export-btn export-primary">エクスポート</button>
                 </div>
             </div>
         </div>

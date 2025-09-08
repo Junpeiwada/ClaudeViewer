@@ -693,6 +693,92 @@ function copySelectedModalContent(): void {
   }
 }
 
+// エクスポート機能
+function showExportModal(): void {
+  // 現在選択されているファイルがあるかチェック
+  if (!selectedNode || selectedNode.type !== 'file' || !selectedNode.fileData) {
+    updateStatus('❌ エクスポートするファイルが選択されていません');
+    setTimeout(() => updateStatus('Ready'), 2000);
+    return;
+  }
+
+  const modal = document.getElementById('export-modal');
+  const filenameElement = document.getElementById('export-filename');
+  const filesizeElement = document.getElementById('export-filesize');
+  
+  if (!modal || !filenameElement || !filesizeElement) return;
+
+  // ファイル情報を表示
+  const file = selectedNode.fileData;
+  const sessionId = file.name.substring(0, 8);
+  const currentDate = new Date().toISOString().split('T')[0];
+  
+  filenameElement.textContent = `Session_${sessionId}_${currentDate}`;
+  filesizeElement.textContent = `${file.size} | ${file.date}`;
+
+  modal.style.display = 'block';
+}
+
+function hideExportModal(): void {
+  const modal = document.getElementById('export-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+async function executeExport(): Promise<void> {
+  if (!selectedNode || selectedNode.type !== 'file' || !selectedNode.fileData) {
+    updateStatus('❌ エクスポートするファイルがありません');
+    return;
+  }
+
+  const file = selectedNode.fileData;
+  const sessionId = file.name.substring(0, 8);
+  const currentDate = new Date().toISOString().split('T')[0];
+  const fileName = `Session_${sessionId}_${currentDate}.html`;
+
+  try {
+    hideExportModal();
+    updateStatus(`📤 HTMLエクスポート準備中...`);
+
+    // HTMLコンテンツを再生成（最新の会話データで）
+    updateStatus(`📊 HTML用データ変換中...`);
+    const mdResult = await window.electronAPI.convertJsonlToMd(file.fullPath);
+    
+    if (!mdResult.success || !mdResult.mdContent) {
+      throw new Error(mdResult.error || 'MD変換に失敗しました');
+    }
+
+    const htmlResult = await window.electronAPI.convertMdToHtml(mdResult.mdContent);
+    
+    if (!htmlResult.success || !htmlResult.html) {
+      throw new Error(htmlResult.error || 'HTML変換に失敗しました');
+    }
+
+    // HTMLエクスポート実行
+    updateStatus(`💾 HTMLファイル保存中...`);
+    
+    const exportResult = await window.electronAPI.exportHtml(htmlResult.html, fileName);
+
+    if (exportResult.success) {
+      updateStatus(`✅ ${exportResult.message} - ${exportResult.filePath}`);
+      setTimeout(() => updateStatus('Ready'), 4000);
+    } else {
+      throw new Error(exportResult.error || 'エクスポートに失敗しました');
+    }
+
+  } catch (error) {
+    console.error('Export error:', error);
+    updateStatus(`❌ エクスポートエラー: ${error.message || error}`);
+    setTimeout(() => updateStatus('Ready'), 3000);
+    
+    await window.electronAPI.showErrorDialog(
+      'エクスポートエラー',
+      `HTMLエクスポート中にエラーが発生しました:\n${error.message || error}`
+    );
+  }
+}
+
 // Tree Viewキーボードナビゲーション
 function navigateTreeWithKeyboard(moveDown: boolean): void {
   if (treeData.length === 0) return;
@@ -744,9 +830,8 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[DEBUG FROM MAIN]:', message);
   });
 
-  // ボタンイベント
+  // 更新ボタンイベント
   const refreshBtn = document.getElementById('refresh-btn');
-  const settingsBtn = document.getElementById('settings-btn');
 
   refreshBtn?.addEventListener('click', async () => {
     updateStatus('更新中...');
@@ -758,11 +843,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error refreshing projects:', error);
       updateStatus('更新エラー');
     }
-  });
-
-  settingsBtn?.addEventListener('click', () => {
-    updateStatus('設定画面（未実装）');
-    setTimeout(() => updateStatus('Ready'), 1000);
   });
 
   // ソートイベント
@@ -895,7 +975,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const htmlSelectAll = document.getElementById('html-select-all');
   const htmlCopy = document.getElementById('html-copy');
   const htmlExport = document.getElementById('html-export');
-  const htmlSearch = document.getElementById('html-search');
 
   htmlSelectAll?.addEventListener('click', () => {
     selectAllHtmlContent();
@@ -906,13 +985,34 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   htmlExport?.addEventListener('click', () => {
-    updateStatus('エクスポート機能（未実装）');
-    setTimeout(() => updateStatus('Ready'), 1000);
+    showExportModal();
   });
 
-  htmlSearch?.addEventListener('click', () => {
-    updateStatus('検索機能（未実装）');
-    setTimeout(() => updateStatus('Ready'), 1000);
+  // エクスポートダイアログのイベント
+  const exportCancel = document.getElementById('export-cancel');
+  const exportSave = document.getElementById('export-save');
+  const modalExport = document.getElementById('modal-export');
+
+  exportCancel?.addEventListener('click', () => {
+    hideExportModal();
+  });
+
+  exportSave?.addEventListener('click', () => {
+    executeExport();
+  });
+
+  modalExport?.addEventListener('click', () => {
+    showExportModal();
+  });
+
+  // Escapeキーでエクスポートモーダル閉じる
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const exportModal = document.getElementById('export-modal');
+      if (exportModal && exportModal.style.display === 'block') {
+        hideExportModal();
+      }
+    }
   });
 
   // アプリ初期化（Tree View版）
