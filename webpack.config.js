@@ -46,6 +46,14 @@ module.exports = {
           from: './src/renderer/styles.css',
           to: 'styles.css',
         },
+        {
+          from: './src/renderer/conversation.css',
+          to: 'conversation.css',
+        },
+        {
+          from: './src/renderer/chat-simple.css',
+          to: 'chat-simple.css',
+        },
       ],
     }),
   ],

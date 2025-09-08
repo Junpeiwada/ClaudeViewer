@@ -142,7 +142,7 @@ body {
 }
 
 .pane-header {
-    padding: 1rem;
+    padding: 0.75rem;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border-color);
     display: flex;
@@ -166,8 +166,8 @@ body {
 }
 
 .project-item {
-    padding: 0.75rem 1rem;
-    margin: 0.25rem 0;
+    padding: 0.5rem 0.75rem;
+    margin: 0.125rem 0;
     border-radius: 0.375rem;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -510,8 +510,6 @@ body {
     word-wrap: break-word !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
-    /* 特に長いURL用の強制改行 */
-    white-space: pre-wrap;
 }
 
 /* リンクやコード等の特定要素に対する追加設定 */
@@ -724,9 +722,8 @@ body {
     -webkit-user-select: text !important;
     -moz-user-select: text !important;
     -ms-user-select: text !important;
-    /* スクロール動作の設定 */
-    scroll-behavior: smooth;
-    scroll-snap-type: y mandatory;
+    /* スクロール動作の設定（アニメーション無効） */
+    scroll-behavior: auto;
     /* テキストの折り返し設定 */
     word-wrap: break-word;
     word-break: break-word;

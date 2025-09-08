@@ -325,7 +325,7 @@ class ClaudeViewer {
     // HTMLメッセージを生成
     const messagesHtml = messages.map(message => this.generateMessageHtml(message)).join('\n');
     
-    // 完全なHTMLページを生成
+    // 完全なHTMLページを生成（構造簡素化）
     const fullHtml = `
       <!DOCTYPE html>
       <html lang="ja">
@@ -333,36 +333,46 @@ class ClaudeViewer {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Claude Code会話履歴 - ${sessionId ? sessionId.substring(0, 8) : 'conversation'}</title>
+        <link rel="stylesheet" href="chat-simple.css">
         <style>
-          ${this.getConversationStyles()}
+          /* 確実に適用されるインラインスタイル */
+          body { margin: 0; padding: 8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(to bottom, #e0f2fe, #f0f9ff); }
+          .chat-msg { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 10px 14px; background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); word-wrap: break-word; }
+          .chat-msg.user { flex-direction: row-reverse; background: white; margin-left: 80px; margin-right: 8px; }
+          .chat-msg.claude { background: #f5f5f5; margin-left: 8px; margin-right: 80px; }
+          .chat-icon { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+          .chat-msg.user .chat-icon { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+          .chat-msg.claude .chat-icon { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+          .chat-text { flex: 1; font-size: 0.95rem; line-height: 1.4; word-break: break-word; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>🤖 Claude Code会話履歴</h1>
-          <p>Session: ${sessionId ? sessionId.substring(0, 8) + '...' : 'Unknown'}</p>
-          ${date ? `<p>Date: ${new Date(date).toLocaleString('ja-JP')}</p>` : ''}
+        <div class="chat-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 16px; text-align: center; border-radius: 8px; margin-bottom: 12px;">
+          <h1 style="font-size: 1.3rem; margin: 0 0 4px 0;">🤖 Claude Code会話履歴</h1>
+          <p style="font-size: 0.9rem; margin: 0; opacity: 0.9;">Session: ${sessionId ? sessionId.substring(0, 8) + '...' : 'Unknown'} | ${date ? new Date(date).toLocaleString('ja-JP') : 'Unknown Date'}</p>
         </div>
         
-        <div class="container">
-          <div class="conversation">
-            ${messagesHtml}
-          </div>
+        <div class="chat-container">
+          ${messagesHtml}
         </div>
         
         <script>
-          // ページ読み込み時に必ずトップにスクロール
+          // デバッグ用ログ
+          console.log('🤖 Claude Code会話履歴が読み込まれました');
+          console.log('メッセージ数:', document.querySelectorAll('.chat-msg').length);
+          
+          // スタイル適用確認
+          const firstMsg = document.querySelector('.chat-msg');
+          if (firstMsg) {
+            console.log('メッセージスタイル確認:', window.getComputedStyle(firstMsg).display);
+          } else {
+            console.warn('⚠️ メッセージ要素が見つかりません');
+          }
+          
+          // スクロール制御
           window.addEventListener('load', function() {
             window.scrollTo(0, 0);
-            document.body.scrollTop = 0;
-            document.documentElement.scrollTop = 0;
-          });
-          
-          // DOM読み込み完了時にもスクロールリセット
-          document.addEventListener('DOMContentLoaded', function() {
-            window.scrollTo(0, 0);
-            document.body.scrollTop = 0;
-            document.documentElement.scrollTop = 0;
+            console.log('📜 ページトップにスクロールしました');
           });
         </script>
       </body>
@@ -372,19 +382,15 @@ class ClaudeViewer {
     return fullHtml;
   }
 
-  // 個別メッセージのHTML生成（元版準拠・シンプル化）
+  // シンプルな2層構造でメッセージHTML生成
   private generateMessageHtml(message: { type: 'user' | 'claude', content: string }): string {
     const icon = message.type === 'user' ? '👤' : '🤖';
     const processedContent = this.processMessageContent(message.content);
     
     return `
-      <div class="message ${message.type}">
-        <div class="message-icon">${icon}</div>
-        <div class="message-content">
-          <div class="message-bubble">
-            ${processedContent}
-          </div>
-        </div>
+      <div class="chat-msg ${message.type}">
+        <span class="chat-icon">${icon}</span>
+        <div class="chat-text">${processedContent}</div>
       </div>
     `;
   }
@@ -459,6 +465,7 @@ class ClaudeViewer {
         color: #1f2937;
         line-height: 1.6;
         min-height: 100vh;
+        scroll-behavior: auto !important; /* スクロールアニメーション無効化 */
       }
 
       .header {

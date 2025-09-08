@@ -1,0 +1,163 @@
+/* 会話表示用ミニマルCSS - HTMLコンテンツ専用 */
+
+/* HTMLコンテンツ専用リセット */
+.conversation-content * {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+}
+
+.conversation-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(to bottom, #e0f2fe, #f0f9ff);
+  color: #1f2937;
+  line-height: 1.3;
+  padding: 2px !important;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* ヘッダー - 適度な余白 */
+.conversation-content .header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px !important;
+  text-align: center;
+}
+
+.conversation-content .header h1 {
+  font-size: 1.4rem;
+  margin-bottom: 4px !important;
+}
+
+.conversation-content .header p {
+  font-size: 0.9rem;
+  margin: 0 !important;
+}
+
+/* メッセージ直接配置 - アイコンと発言を同じ高さに */
+.conversation-content .message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px !important;
+  padding: 4px !important;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.conversation-content .message.user {
+  flex-direction: row-reverse;
+}
+
+/* アイコン - 発言と同じ高さに配置 */
+.conversation-content .message-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.conversation-content .message.user .message-icon {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+}
+
+.conversation-content .message.claude .message-icon {
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+}
+
+.conversation-content .message.system .message-icon {
+  background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+/* メッセージバブル - 適度なpadding */
+.conversation-content .message-content {
+  flex: 1;
+  max-width: calc(100% - 34px);
+}
+
+.conversation-content .message-bubble {
+  display: inline-block;
+  padding: 6px 10px !important;
+  border-radius: 8px;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+  font-size: 0.95rem;
+}
+
+.conversation-content .message.user .message-bubble {
+  background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+  color: #1e40af;
+}
+
+.conversation-content .message.claude .message-bubble {
+  background: linear-gradient(135deg, #ede9fe, #f3e8ff);
+  color: #5b21b6;
+}
+
+.conversation-content .message.system .message-bubble {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  color: #065f46;
+}
+
+/* バブル内全要素のマージン完全削除 */
+.conversation-content .message-bubble * {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.3 !important;
+}
+
+/* 連続要素間の極小余白 */
+.conversation-content .message-bubble p + p,
+.conversation-content .message-bubble div + div,
+.conversation-content .message-bubble p + div,
+.conversation-content .message-bubble div + p {
+  margin-top: 2px !important;
+}
+
+/* コード要素 - 最小化 */
+.conversation-content code {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0px 2px !important;
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.conversation-content pre {
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 3px !important;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.8em;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 1px 0 !important;
+}
+
+/* リンク */
+.conversation-content a {
+  color: #3b82f6;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.conversation-content a:hover {
+  text-decoration: underline;
+}
+
+/* 強調 */
+.conversation-content strong, 
+.conversation-content b {
+  font-weight: 600;
+}
