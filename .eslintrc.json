@@ -4,9 +4,7 @@
   "plugins": ["@typescript-eslint", "prettier"],
   "extends": [
     "eslint:recommended",
-    "@typescript-eslint/recommended",
-    "prettier",
-    "plugin:prettier/recommended"
+    "prettier"
   ],
   "parserOptions": {
     "ecmaVersion": 2022,

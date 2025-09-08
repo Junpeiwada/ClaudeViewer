@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTheme: () => ({
     shouldUseDarkColors: ipcRenderer.sendSync('get-theme'),
   }),
-  
+
   onThemeChanged: (callback: (theme: { shouldUseDarkColors: boolean }) => void) => {
     ipcRenderer.on('theme-changed', (_, theme) => callback(theme));
   },
@@ -16,21 +16,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // アプリ情報
   getVersion: () => ipcRenderer.sendSync('get-version'),
-  
+
   // ファイルシステム関連
   getProjects: () => ipcRenderer.invoke('get-projects'),
   getProjectFiles: (projectPath: string) => ipcRenderer.invoke('get-project-files', projectPath),
-  
+
   // エラーハンドリング
-  showErrorDialog: (title: string, message: string) => ipcRenderer.invoke('show-error-dialog', title, message),
-  
+  showErrorDialog: (title: string, message: string) =>
+    ipcRenderer.invoke('show-error-dialog', title, message),
+
   // システム操作
   showInFinder: (filePath: string) => ipcRenderer.invoke('show-in-finder', filePath),
-  
+
   // ファイル変換（新しいTypeScript版）
   convertJsonlToMd: (jsonlPath: string) => ipcRenderer.invoke('convert-jsonl-to-md', jsonlPath),
   convertMdToHtml: (mdContent: string) => ipcRenderer.invoke('convert-md-to-html', mdContent),
-  
+
   // ファイル操作
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
 });
@@ -60,8 +61,12 @@ declare global {
       getProjectFiles: (projectPath: string) => Promise<ConversationFile[]>;
       showErrorDialog: (title: string, message: string) => Promise<void>;
       showInFinder: (filePath: string) => Promise<void>;
-      convertJsonlToMd: (jsonlPath: string) => Promise<{ success: boolean; mdContent?: string; error?: string }>;
-      convertMdToHtml: (mdContent: string) => Promise<{ success: boolean; html?: string; error?: string }>;
+      convertJsonlToMd: (
+        jsonlPath: string
+      ) => Promise<{ success: boolean; mdContent?: string; error?: string }>;
+      convertMdToHtml: (
+        mdContent: string
+      ) => Promise<{ success: boolean; html?: string; error?: string }>;
       readFile: (filePath: string) => Promise<string>;
     };
   }

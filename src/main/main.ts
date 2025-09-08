@@ -17,10 +17,10 @@ class ClaudeViewer {
 
     // メインウィンドウを作成
     this.createMainWindow();
-    
+
     // アプリメニューを設定
     this.setupMenu();
-    
+
     // IPCハンドラを設定
     this.setupIPCHandlers();
 
@@ -71,7 +71,7 @@ class ClaudeViewer {
     this.mainWindow.once('ready-to-show', () => {
       if (this.mainWindow) {
         this.mainWindow.show();
-        
+
         // F12キーでDevToolsを開閉（安定化版）
         let f12LastPressed = 0;
         this.mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -82,7 +82,7 @@ class ClaudeViewer {
               return;
             }
             f12LastPressed = now;
-            
+
             // DevTools開閉処理
             setTimeout(() => {
               if (this.mainWindow && !this.mainWindow.isDestroyed()) {
@@ -95,7 +95,7 @@ class ClaudeViewer {
             }, 10);
           }
         });
-        
+
         // デフォルトではDevToolsを開かない
         // F12キーまたはメニューから開く
       }
@@ -111,14 +111,10 @@ class ClaudeViewer {
   }
 
   private setupMenu(): void {
-    const template: Electron.MenuItemConstructorOptions[] = [
+    const template: Array<any> = [
       {
         label: 'Claude Code Viewer',
-        submenu: [
-          { role: 'about' },
-          { type: 'separator' },
-          { role: 'quit' }
-        ]
+        submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'quit' }],
       },
       {
         label: '表示',
@@ -132,22 +128,19 @@ class ClaudeViewer {
               } else {
                 this.mainWindow?.webContents.openDevTools();
               }
-            }
+            },
           },
           { type: 'separator' },
           { role: 'reload' },
           { role: 'forceReload' },
           { type: 'separator' },
-          { role: 'togglefullscreen' }
-        ]
+          { role: 'togglefullscreen' },
+        ],
       },
       {
         label: 'ウィンドウ',
-        submenu: [
-          { role: 'minimize' },
-          { role: 'close' }
-        ]
-      }
+        submenu: [{ role: 'minimize' }, { role: 'close' }],
+      },
     ];
 
     const menu = Menu.buildFromTemplate(template);
@@ -159,7 +152,7 @@ class ClaudeViewer {
     ipcMain.handle('get-projects', async () => {
       try {
         const claudeProjectsPath = path.join(os.homedir(), '.claude', 'projects');
-        
+
         if (!fs.existsSync(claudeProjectsPath)) {
           throw new Error('Claude projects folder not found');
         }
@@ -169,11 +162,11 @@ class ClaudeViewer {
           .filter(entry => entry.isDirectory())
           .map(entry => {
             const fullPath = path.join(claudeProjectsPath, entry.name);
-            
+
             // フォルダ名をそのまま使用（編集なし）
             return {
               name: entry.name,
-              path: fullPath
+              path: fullPath,
             };
           })
           .sort((a, b) => a.name.localeCompare(b.name));
@@ -198,17 +191,19 @@ class ClaudeViewer {
           .map(entry => {
             const filePath = path.join(projectPath, entry.name);
             const stats = fs.statSync(filePath);
-            
+
             return {
               name: entry.name,
-              date: stats.mtime.toLocaleDateString('ja-JP') + ' ' + 
-                    stats.mtime.toLocaleTimeString('ja-JP', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    }),
+              date:
+                stats.mtime.toLocaleDateString('ja-JP') +
+                ' ' +
+                stats.mtime.toLocaleTimeString('ja-JP', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
               size: (stats.size / (1024 * 1024)).toFixed(1) + 'MB',
               fullPath: filePath,
-              mtime: stats.mtime
+              mtime: stats.mtime,
             };
           });
 
@@ -226,7 +221,7 @@ class ClaudeViewer {
           type: 'error',
           title: title,
           message: message,
-          buttons: ['OK']
+          buttons: ['OK'],
         });
       }
     });
@@ -253,9 +248,9 @@ class ClaudeViewer {
         return { success: true, mdContent };
       } catch (error) {
         console.error('JSONL→MD変換エラー:', error);
-        return { 
-          success: false, 
-          error: error instanceof Error ? error.message : `変換エラー: ${error}` 
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : `変換エラー: ${error}`,
         };
       }
     });
@@ -292,7 +287,7 @@ class ClaudeViewer {
     const lines = mdContent.split('\n');
     let sessionId = '';
     let date = '';
-    
+
     // ヘッダー情報を抽出
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const line = lines[i];
@@ -302,11 +297,11 @@ class ClaudeViewer {
         date = line.replace('Date: ', '').trim();
       }
     }
-    
+
     // メッセージセクションを抽出（元版準拠・シンプル化）
     const sections = mdContent.split(/^---$/gm);
-    const messages: { type: 'user' | 'claude', content: string }[] = [];
-    
+    const messages: { type: 'user' | 'claude'; content: string }[] = [];
+
     for (const section of sections) {
       const trimmedSection = section.trim();
       if (trimmedSection.startsWith('## 👤 User')) {
@@ -321,10 +316,10 @@ class ClaudeViewer {
         }
       }
     }
-    
+
     // HTMLメッセージを生成
     const messagesHtml = messages.map(message => this.generateMessageHtml(message)).join('\n');
-    
+
     // 完全なHTMLページを生成（構造簡素化）
     const fullHtml = `
       <!DOCTYPE html>
@@ -377,15 +372,15 @@ class ClaudeViewer {
       </body>
       </html>
     `;
-    
+
     return fullHtml;
   }
 
   // シンプルな2層構造でメッセージHTML生成
-  private generateMessageHtml(message: { type: 'user' | 'claude', content: string }): string {
+  private generateMessageHtml(message: { type: 'user' | 'claude'; content: string }): string {
     const icon = message.type === 'user' ? '👤' : '🤖';
     const processedContent = this.processMessageContent(message.content);
-    
+
     return `
       <div class="chat-msg ${message.type}">
         <span class="chat-icon">${icon}</span>
@@ -396,40 +391,45 @@ class ClaudeViewer {
 
   // メッセージ内容の処理（Markdown → HTML）
   private processMessageContent(content: string): string {
-    return content
-      // detailsタグをそのまま保持（HTMLとして処理）
-      .replace(/(<details[^>]*>[\s\S]*?<\/details>)/g, '$1')
-      // コードブロック処理（```で囲まれた部分）
-      .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-        // detailsタグ内のコードブロックは特別処理
-        if (match.includes('<details')) {
-          return match;
-        }
-        return `<div class="code-block">${this.escapeHtml(code)}</div>`;
-      })
-      // インラインコード処理（`で囲まれた部分）
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // 太字処理
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // 斜体処理  
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // リンク処理
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-      // 改行処理（detailsタグ内は改行保持）
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
+    return (
+      content
+        // detailsタグをそのまま保持（HTMLとして処理）
+        .replace(/(<details[^>]*>[\s\S]*?<\/details>)/g, '$1')
+        // コードブロック処理（```で囲まれた部分）
+        .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+          // detailsタグ内のコードブロックは特別処理
+          if (match.includes('<details')) {
+            return match;
+          }
+          return `<div class="code-block">${this.escapeHtml(code)}</div>`;
+        })
+        // インラインコード処理（`で囲まれた部分）
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // 太字処理
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // 斜体処理
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // リンク処理
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        // 改行処理（detailsタグ内は改行保持）
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>')
+    );
   }
 
   // HTMLエスケープ
   private escapeHtml(text: string): string {
     const div = { innerHTML: '' } as any;
     div.textContent = text;
-    return div.innerHTML || text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return (
+      div.innerHTML ||
+      text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+    );
   }
 
   // 会話用CSSスタイル
@@ -735,8 +735,6 @@ class ClaudeViewer {
       }
     `;
   }
-
-
 }
 
 // アプリケーション起動

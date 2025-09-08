@@ -35,17 +35,20 @@ export class ClaudeExtractor {
     }
 
     const conversationData = this.parseJsonl(jsonlPath);
-    
+
     if (conversationData.messages.length === 0) {
       // 空のファイルまたはメタメッセージのみの場合は、情報メッセージを返す
       const emptyConversation: ConversationData = {
-        messages: [{
-          role: 'assistant',
-          content: 'このセッションには表示可能な会話メッセージがありません。\n\n含まれる内容：\n- メタ情報\n- コマンド実行ログ\n- システムメッセージ\n\nこれらの情報は通常、会話履歴には表示されません。',
-          timestamp: conversationData.firstTimestamp
-        }],
+        messages: [
+          {
+            role: 'assistant',
+            content:
+              'このセッションには表示可能な会話メッセージがありません。\n\n含まれる内容：\n- メタ情報\n- コマンド実行ログ\n- システムメッセージ\n\nこれらの情報は通常、会話履歴には表示されません。',
+            timestamp: conversationData.firstTimestamp,
+          },
+        ],
         sessionId: conversationData.sessionId,
-        firstTimestamp: conversationData.firstTimestamp
+        firstTimestamp: conversationData.firstTimestamp,
       };
       return this.generateMarkdown(emptyConversation);
     }
@@ -62,31 +65,31 @@ export class ClaudeExtractor {
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const lines = fileContent.split('\n');
     const messages: ConversationMessage[] = [];
-    
+
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
-      
+
       try {
         const entry: JsonlEntry = JSON.parse(trimmedLine);
-        
+
         // ユーザーメッセージの処理（元版準拠・シンプル化）
         if (entry.type === 'user' && entry.message?.role === 'user') {
           // メタ情報やシステムメッセージをスキップ
           if (entry.isMeta || this.shouldSkipMessage(entry.message.content)) {
             continue;
           }
-          
+
           const content = this.extractTextContent(entry.message.content);
           if (content && content.trim()) {
             messages.push({
               role: 'user',
               content: content.trim(),
-              timestamp: entry.timestamp || ''
+              timestamp: entry.timestamp || '',
             });
           }
         }
-        
+
         // アシスタントメッセージの処理（元版準拠・シンプル化）
         if (entry.type === 'assistant' && entry.message?.role === 'assistant') {
           const content = this.extractTextContent(entry.message.content);
@@ -94,21 +97,20 @@ export class ClaudeExtractor {
             messages.push({
               role: 'assistant',
               content: content.trim(),
-              timestamp: entry.timestamp || ''
+              timestamp: entry.timestamp || '',
             });
           }
         }
-        
-      } catch (error) {
+      } catch {
         // JSON解析エラーは無視（元版と同様）
         continue;
       }
     }
-    
+
     return {
       messages,
       sessionId: path.basename(filePath, '.jsonl'),
-      firstTimestamp: messages[0]?.timestamp || ''
+      firstTimestamp: messages[0]?.timestamp || '',
     };
   }
 
@@ -117,24 +119,26 @@ export class ClaudeExtractor {
    */
   private shouldSkipMessage(content: any): boolean {
     if (typeof content === 'string') {
-      return content.includes('<command-name>') || 
-             content.includes('<local-command-stdout>') ||
-             content.includes('system-reminder') ||
-             content.includes('Caveat: The messages below') ||
-             content.includes('Plan mode is active') ||
-             content.includes('Background Bash') ||
-             content.includes('[Request interrupted by user]') ||
-             content.includes('tool use was rejected');
-    }
-    
-    // 配列の場合、tool_resultが含まれていればスキップ
-    if (Array.isArray(content)) {
-      return content.some(item => 
-        item && typeof item === 'object' && 
-        (item.type === 'tool_result' || item.tool_use_id)
+      return (
+        content.includes('<command-name>') ||
+        content.includes('<local-command-stdout>') ||
+        content.includes('system-reminder') ||
+        content.includes('Caveat: The messages below') ||
+        content.includes('Plan mode is active') ||
+        content.includes('Background Bash') ||
+        content.includes('[Request interrupted by user]') ||
+        content.includes('tool use was rejected')
       );
     }
-    
+
+    // 配列の場合、tool_resultが含まれていればスキップ
+    if (Array.isArray(content)) {
+      return content.some(
+        item =>
+          item && typeof item === 'object' && (item.type === 'tool_result' || item.tool_use_id)
+      );
+    }
+
     return false;
   }
 
@@ -147,7 +151,7 @@ export class ClaudeExtractor {
     if (typeof content === 'string') {
       return content;
     }
-    
+
     if (Array.isArray(content)) {
       const textParts: string[] = [];
       for (const item of content) {
@@ -161,11 +165,11 @@ export class ClaudeExtractor {
       }
       return textParts.join('\n');
     }
-    
+
     if (typeof content === 'object' && content !== null) {
       return String(content);
     }
-    
+
     return String(content);
   }
 
@@ -176,10 +180,10 @@ export class ClaudeExtractor {
    */
   private generateMarkdown(data: ConversationData): string {
     let markdown = '# Claude Conversation Log\n\n';
-    
+
     // セッション情報
     markdown += `Session ID: ${data.sessionId}\n`;
-    
+
     // 日付情報の処理
     if (data.firstTimestamp) {
       try {
@@ -189,7 +193,7 @@ export class ClaudeExtractor {
         const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
         const timeStr = date.toTimeString().split(' ')[0]; // HH:MM:SS
         markdown += `Date: ${dateStr} ${timeStr}`;
-      } catch (error) {
+      } catch {
         // タイムスタンプ解析に失敗した場合は現在日付を使用
         const now = new Date();
         markdown += `Date: ${now.toISOString().split('T')[0]}`;
@@ -199,9 +203,9 @@ export class ClaudeExtractor {
       const now = new Date();
       markdown += `Date: ${now.toISOString().split('T')[0]}`;
     }
-    
+
     markdown += '\n\n---\n\n';
-    
+
     // メッセージの処理（元版準拠・シンプル化）
     for (const message of data.messages) {
       if (message.role === 'user') {
@@ -213,7 +217,7 @@ export class ClaudeExtractor {
       }
       markdown += '---\n\n';
     }
-    
+
     return markdown;
   }
 }
