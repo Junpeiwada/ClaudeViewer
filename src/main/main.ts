@@ -2,7 +2,7 @@ import { app, BrowserWindow, nativeTheme, Menu, ipcMain, dialog, shell } from 'e
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { spawn } from 'child_process';
+import { ClaudeExtractor } from '../lib/claudeExtractor';
 
 class ClaudeViewer {
   private mainWindow: BrowserWindow | null = null;
@@ -268,110 +268,20 @@ class ClaudeViewer {
       }
     });
 
-    // セッション一覧取得
-    ipcMain.handle('get-sessions', async (_, projectPath: string) => {
-      return new Promise((resolve) => {
-        try {
-          const venvPath = '/Users/junpeiwada/Documents/Project/ClaudeViewer/claude-extractor-env';
-          const claudeExtractPath = path.join(venvPath, 'bin', 'claude-extract');
-          
-          const listProcess = spawn(claudeExtractPath, ['--list', '--limit', '50'], {
-            env: { ...process.env, PATH: `${path.join(venvPath, 'bin')}:${process.env.PATH}` },
-            cwd: projectPath
-          });
+    // 新しいTypeScript版JSONL→MD変換
 
-          let stdout = '';
-          listProcess.stdout?.on('data', (data) => {
-            stdout += data.toString();
-          });
-
-          listProcess.on('close', (code) => {
-            if (code === 0) {
-              // セッション情報をパース
-              const sessions = this.parseSessionList(stdout);
-              resolve({ success: true, sessions });
-            } else {
-              resolve({ success: false, sessions: [] });
-            }
-          });
-        } catch (error) {
-          resolve({ success: false, sessions: [] });
-        }
-      });
-    });
-
-    // JSONL→MD変換
-    ipcMain.handle('convert-jsonl-to-md', async (_, jsonlPath: string, outputDir: string) => {
-      return new Promise(async (resolve) => {
-        try {
-          // venv環境のclaude-extractコマンドを実行
-          const venvPath = '/Users/junpeiwada/Documents/Project/ClaudeViewer/claude-extractor-env';
-          const claudeExtractPath = path.join(venvPath, 'bin', 'claude-extract');
-          
-          // 出力ディレクトリを作成
-          if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-          }
-
-          // JSONLファイルが含まれているプロジェクトディレクトリを取得
-          const projectDir = path.dirname(jsonlPath);
-          
-          // ファイル名からセッション番号を特定
-          const sessionNumber = await this.findSessionNumber(jsonlPath, projectDir);
-          
-          // claude-extractプロセスを起動（特定のセッションを変換）
-          const claudeProcess = spawn(claudeExtractPath, [
-            '--extract', sessionNumber.toString(),
-            '--output', outputDir
-          ], {
-            env: { ...process.env, PATH: `${path.join(venvPath, 'bin')}:${process.env.PATH}` },
-            cwd: projectDir // JSONLファイルがあるプロジェクトディレクトリから実行
-          });
-
-          let stdout = '';
-          let stderr = '';
-
-          claudeProcess.stdout?.on('data', (data) => {
-            stdout += data.toString();
-          });
-
-          claudeProcess.stderr?.on('data', (data) => {
-            stderr += data.toString();
-          });
-
-          claudeProcess.on('close', (code) => {
-            if (code === 0) {
-              // 生成されたMDファイルを探す
-              const outputFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.md'));
-              const mdPath = outputFiles.length > 0 ? path.join(outputDir, outputFiles[0]) : null;
-              
-              resolve({ 
-                success: true, 
-                mdPath: mdPath,
-                stdout: stdout 
-              });
-            } else {
-              resolve({ 
-                success: false, 
-                error: `変換プロセスエラー (code: ${code}): ${stderr}` 
-              });
-            }
-          });
-
-          claudeProcess.on('error', (error) => {
-            resolve({ 
-              success: false, 
-              error: `プロセス起動エラー: ${error.message}` 
-            });
-          });
-
-        } catch (error) {
-          resolve({ 
-            success: false, 
-            error: `変換エラー: ${error}` 
-          });
-        }
-      });
+    ipcMain.handle('convert-jsonl-to-md', async (_, jsonlPath: string) => {
+      try {
+        const extractor = new ClaudeExtractor();
+        const mdContent = await extractor.convertFile(jsonlPath);
+        return { success: true, mdContent };
+      } catch (error) {
+        console.error('JSONL→MD変換エラー:', error);
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : `変換エラー: ${error}` 
+        };
+      }
     });
 
     // ファイル読み込み
@@ -417,7 +327,7 @@ class ClaudeViewer {
       }
     }
     
-    // メッセージセクションを抽出
+    // メッセージセクションを抽出（元版準拠・シンプル化）
     const sections = mdContent.split(/^---$/gm);
     const messages: { type: 'user' | 'claude', content: string }[] = [];
     
@@ -486,7 +396,7 @@ class ClaudeViewer {
     return fullHtml;
   }
 
-  // 個別メッセージのHTML生成
+  // 個別メッセージのHTML生成（元版準拠・シンプル化）
   private generateMessageHtml(message: { type: 'user' | 'claude', content: string }): string {
     const icon = message.type === 'user' ? '👤' : '🤖';
     const processedContent = this.processMessageContent(message.content);
@@ -506,8 +416,16 @@ class ClaudeViewer {
   // メッセージ内容の処理（Markdown → HTML）
   private processMessageContent(content: string): string {
     return content
+      // detailsタグをそのまま保持（HTMLとして処理）
+      .replace(/(<details[^>]*>[\s\S]*?<\/details>)/g, '$1')
       // コードブロック処理（```で囲まれた部分）
-      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<div class="code-block">$2</div>')
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+        // detailsタグ内のコードブロックは特別処理
+        if (match.includes('<details')) {
+          return match;
+        }
+        return `<div class="code-block">${this.escapeHtml(code)}</div>`;
+      })
       // インラインコード処理（`で囲まれた部分）
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       // 太字処理
@@ -516,9 +434,21 @@ class ClaudeViewer {
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       // リンク処理
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-      // 改行処理
+      // 改行処理（detailsタグ内は改行保持）
       .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>');
+  }
+
+  // HTMLエスケープ
+  private escapeHtml(text: string): string {
+    const div = { innerHTML: '' } as any;
+    div.textContent = text;
+    return div.innerHTML || text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // 会話用CSSスタイル
@@ -669,81 +599,135 @@ class ClaudeViewer {
       a:hover {
         text-decoration: underline;
       }
+
+      /* 折り畳み機能のスタイル */
+      details.tool-result, details.command-result {
+        margin: 1rem 0;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+        background: rgba(248, 250, 252, 0.8);
+      }
+
+      details.tool-result summary, details.command-result summary {
+        padding: 0.75rem 1rem;
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        cursor: pointer;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      details.tool-result summary:hover, details.command-result summary:hover {
+        background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+      }
+
+      details.tool-result[open] summary, details.command-result[open] summary {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      details.tool-result pre, details.command-result pre {
+        margin: 0;
+        padding: 1rem;
+        background: #1f2937;
+        color: #e5e7eb;
+        font-family: 'Monaco', 'Consolas', monospace;
+        font-size: 0.875rem;
+        overflow-x: auto;
+        white-space: pre-wrap;
+      }
+
+      /* ツール種別による色分け */
+      details.tool-result.read-tool summary {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      }
+
+      details.tool-result.edit-tool summary {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+      }
+
+      details.command-result summary {
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+      }
+
+      /* アイコン付きの summary */
+      summary::marker {
+        content: '';
+      }
+
+      summary::before {
+        content: '▶️';
+        margin-right: 0.5rem;
+        transition: transform 0.2s ease;
+      }
+
+      details[open] summary::before {
+        content: '🔽';
+        transform: rotate(0deg);
+      }
+
+      /* Plan Proposal特別スタイル */
+      .plan-proposal {
+        margin: 1.5rem 0;
+        border: 2px solid #8b5cf6;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+      }
+
+      .plan-proposal summary {
+        padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .plan-proposal summary:hover {
+        background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+      }
+
+      .plan-proposal summary::before {
+        content: '📋';
+        font-size: 1.2rem;
+      }
+
+      .plan-proposal[open] summary::before {
+        content: '📋';
+      }
+
+      /* System message スタイル */
+      .message.system .message-icon {
+        background: linear-gradient(135deg, #10b981, #34d399);
+      }
+
+      .message.system .message-bubble {
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+      }
+
+      /* Plan message スタイル */
+      .message.plan .message-icon {
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+      }
+
+      .message.plan .message-bubble {
+        background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+        color: #5b21b6;
+        border: 2px solid #c4b5fd;
+      }
     `;
   }
 
-  // セッション一覧のパース
-  private parseSessionList(stdout: string): Array<{number: number, sessionId: string}> {
-    const lines = stdout.split('\n');
-    const sessions: Array<{number: number, sessionId: string}> = [];
-    
-    for (const line of lines) {
-      // "1. -Users-junpeiwada-Documents-Project-ClaudeViewer" の形式を解析
-      const match = line.match(/^(\d+)\.\s+.*Session:\s+([a-f0-9-]+)/);
-      if (match) {
-        sessions.push({
-          number: parseInt(match[1]),
-          sessionId: match[2].replace(/\.\.\.$/, '') // "..." を除去
-        });
-      }
-    }
-    
-    return sessions;
-  }
 
-  // ファイル名からセッション番号を特定
-  private async findSessionNumber(jsonlPath: string, projectDir: string): Promise<number> {
-    return new Promise((resolve) => {
-      try {
-        const venvPath = '/Users/junpeiwada/Documents/Project/ClaudeViewer/claude-extractor-env';
-        const claudeExtractPath = path.join(venvPath, 'bin', 'claude-extract');
-        
-        const listProcess = spawn(claudeExtractPath, ['--list', '--limit', '50'], {
-          env: { ...process.env, PATH: `${path.join(venvPath, 'bin')}:${process.env.PATH}` },
-          cwd: projectDir
-        });
-
-        let stdout = '';
-        listProcess.stdout?.on('data', (data) => {
-          stdout += data.toString();
-        });
-
-        listProcess.on('close', (code) => {
-          if (code === 0) {
-            // ファイル名からセッションIDを抽出
-            const fileName = path.basename(jsonlPath, '.jsonl');
-            const fileSessionId = fileName; // ファイル名がセッションID
-            
-            // セッション一覧をパース
-            const lines = stdout.split('\n');
-            for (const line of lines) {
-              // セッション行の解析："1. ... Session: a3b6a6fd..."
-              const match = line.match(/^(\d+)\.\s+.*Session:\s+([a-f0-9-]+)/);
-              if (match) {
-                const sessionNumber = parseInt(match[1]);
-                const sessionIdPrefix = match[2];
-                
-                // ファイル名のセッションIDとマッチするかチェック
-                if (fileSessionId.startsWith(sessionIdPrefix)) {
-                  resolve(sessionNumber);
-                  return;
-                }
-              }
-            }
-            
-            // マッチするセッションが見つからない場合は1を返す
-            console.warn(`セッション番号が見つかりません: ${fileName}, デフォルトで1を使用`);
-            resolve(1);
-          } else {
-            resolve(1); // エラー時はデフォルトで1
-          }
-        });
-      } catch (error) {
-        console.error('セッション番号特定エラー:', error);
-        resolve(1); // エラー時はデフォルトで1
-      }
-    });
-  }
 }
 
 // アプリケーション起動

@@ -191,31 +191,43 @@ function selectFile(file: ConversationFile): void {
 // ファイルを開く（変換・表示）
 async function openFile(file: ConversationFile): Promise<void> {
   try {
-    updateStatus(`変換準備中: ${file.name}`);
+    // 📊 Step 1: 変換準備
+    updateStatus(`🔍 解析準備中: ${file.name}`);
+    console.log(`Starting enhanced conversion: ${file.name} (${file.fullPath})`);
     
-    const outputDir = '/tmp/claude-viewer-conversion';
-    updateStatus(`JSONL→MD変換中: ${file.name}`);
+    // ファイルサイズに応じた処理時間の予測表示
+    const fileSizeMB = parseFloat(file.size.replace('MB', ''));
+    const estimatedTime = fileSizeMB > 5 ? '数秒' : fileSizeMB > 2 ? '1-2秒' : '1秒未満';
+    updateStatus(`📈 JSONL解析中: ${file.name} (予想時間: ${estimatedTime})`);
     
-    // Step 1: JSONL→MD変換
-    const mdResult = await window.electronAPI.convertJsonlToMd(file.fullPath, outputDir);
+    // Step 2: TypeScript版 JSONL→MD変換（改良版）
+    const mdResult = await window.electronAPI.convertJsonlToMd(file.fullPath);
+    console.log('Enhanced MD conversion result:', {
+      success: mdResult.success,
+      contentLength: mdResult.success ? mdResult.mdContent?.length : 'N/A',
+      error: mdResult.error || 'None'
+    });
     
-    if (mdResult.success && mdResult.mdPath) {
-      updateStatus(`MD→HTML変換中: ${file.name}`);
+    if (mdResult.success && mdResult.mdContent) {
+      // シンプル化されたMD内容の分析
+      const messageCount = (mdResult.mdContent.match(/## 👤|## 🤖/g) || []).length;
+      const codeBlocks = (mdResult.mdContent.match(/```/g) || []).length / 2; // 開始・終了ペア
       
-      // Step 2: MDファイル読み込み
-      const mdContent = await window.electronAPI.readFile(mdResult.mdPath);
+      updateStatus(`🎨 HTML変換中: ${file.name} (${messageCount}メッセージ, ${codeBlocks}コードブロック)`);
+      console.log(`Simplified MD analysis: ${messageCount} messages, ${codeBlocks} code blocks`);
       
       // Step 3: MD→HTML変換
-      const htmlResult = await window.electronAPI.convertMdToHtml(mdContent);
+      const htmlResult = await window.electronAPI.convertMdToHtml(mdResult.mdContent);
+      console.log('Enhanced HTML conversion result:', htmlResult.success ? 'Success' : htmlResult.error);
       
       if (htmlResult.success && htmlResult.html) {
-        updateStatus(`変換完了: ${file.name}`);
+        updateStatus(`✨ 表示準備完了: ${file.name}`);
         
-        // Step 4: HTMLモーダル表示
+        // Step 4: 改善されたHTMLモーダル表示
         showHtmlModal(file.name, htmlResult.html);
         
-        updateStatus(`表示完了: ${file.name}`);
-        setTimeout(() => updateStatus('Ready'), 2000);
+        updateStatus(`🎉 表示完了: ${file.name} (${messageCount}メッセージ)`);
+        setTimeout(() => updateStatus('Ready'), 3000);
       } else {
         throw new Error(htmlResult.error || 'HTML変換に失敗しました');
       }
@@ -223,11 +235,11 @@ async function openFile(file: ConversationFile): Promise<void> {
       throw new Error(mdResult.error || 'JSONL変換に失敗しました');
     }
   } catch (error) {
-    console.error('File conversion error:', error);
-    updateStatus('変換エラー');
+    console.error('Enhanced file conversion error:', error);
+    updateStatus('❌ 変換エラー');
     await window.electronAPI.showErrorDialog(
       '変換エラー',
-      `ファイルの変換に失敗しました:\n${error.message || error}`
+      `改善された変換処理でエラーが発生しました:\n${error.message || error}\n\nツール実行結果の処理中にエラーが発生した可能性があります。`
     );
     setTimeout(() => updateStatus('Ready'), 1000);
   }
@@ -312,7 +324,7 @@ function hideContextMenu(): void {
   contextMenuTarget = null;
 }
 
-// HTMLモーダル表示
+// HTMLモーダル表示（テキスト選択対応改善）
 function showHtmlModal(fileName: string, htmlContent: string): void {
   const modal = document.getElementById('html-modal');
   const modalFileName = document.getElementById('modal-file-name');
@@ -323,19 +335,40 @@ function showHtmlModal(fileName: string, htmlContent: string): void {
   modalFileName.textContent = fileName;
   modalHtmlContent.innerHTML = htmlContent;
   
+  // テキスト選択の有効化を確実に実行
+  modalHtmlContent.style.userSelect = 'text';
+  (modalHtmlContent.style as any).webkitUserSelect = 'text';
+  (modalHtmlContent.style as any).mozUserSelect = 'text';
+  (modalHtmlContent.style as any).msUserSelect = 'text';
+  
   // 複数レベルでスクロール位置をリセット
   modalHtmlContent.scrollTop = 0;
   modalHtmlContent.scrollLeft = 0;
   
-  // HTMLコンテンツの読み込み後にもスクロールリセット
+  // HTMLコンテンツの読み込み後にテキスト選択とスクロールを設定
   setTimeout(() => {
     modalHtmlContent.scrollTo(0, 0);
+    
+    // すべての子要素にもテキスト選択を適用
+    const allElements = modalHtmlContent.querySelectorAll('*');
+    allElements.forEach(element => {
+      const el = element as HTMLElement;
+      // ボタンや操作系要素以外はテキスト選択を有効化
+      if (!el.matches('button, .modal-btn, summary, .modal-close')) {
+        el.style.userSelect = 'text';
+        (el.style as any).webkitUserSelect = 'text';
+        (el.style as any).mozUserSelect = 'text';
+        (el.style as any).msUserSelect = 'text';
+      }
+    });
     
     // 内部のHTMLページのbody要素もリセット
     const iframe = modalHtmlContent.querySelector('iframe') as HTMLIFrameElement;
     if (iframe?.contentDocument?.body) {
       iframe.contentDocument.body.scrollTo(0, 0);
     }
+    
+    console.log('✅ HTML modal displayed with text selection enabled');
   }, 100);
   
   modal.style.display = 'block';
@@ -346,6 +379,48 @@ function hideHtmlModal(): void {
   const modal = document.getElementById('html-modal');
   if (modal) {
     modal.style.display = 'none';
+  }
+}
+
+// モーダル内容の全選択
+function selectAllModalContent(): void {
+  const modalHtmlContent = document.getElementById('modal-html-content');
+  if (modalHtmlContent) {
+    const range = document.createRange();
+    range.selectNodeContents(modalHtmlContent);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    
+    updateStatus('📋 全選択完了 (Cmd+C でコピー)');
+    setTimeout(() => updateStatus('Ready'), 2000);
+    
+    console.log('✅ Modal content selected');
+  }
+}
+
+// 選択されたモーダル内容をクリップボードにコピー
+function copySelectedModalContent(): void {
+  try {
+    if (window.getSelection()?.toString()) {
+      // ブラウザの標準的なコピー機能を使用
+      document.execCommand('copy');
+      
+      const selectedText = window.getSelection()?.toString();
+      const charCount = selectedText?.length || 0;
+      
+      updateStatus(`✅ コピー完了 (${charCount}文字)`);
+      setTimeout(() => updateStatus('Ready'), 2000);
+      
+      console.log(`✅ Copied ${charCount} characters to clipboard`);
+    } else {
+      updateStatus('⚠️ テキストが選択されていません');
+      setTimeout(() => updateStatus('Ready'), 1500);
+    }
+  } catch (error) {
+    console.error('Copy failed:', error);
+    updateStatus('❌ コピーエラー');
+    setTimeout(() => updateStatus('Ready'), 1500);
   }
 }
 
@@ -362,6 +437,11 @@ function updateTheme(): void {
 
 // DOM読み込み完了時の初期化
 document.addEventListener('DOMContentLoaded', () => {
+  // デバッグログの受信
+  window.electronAPI.onDebugLog((message: string) => {
+    console.log('[DEBUG FROM MAIN]:', message);
+  });
+
   // ボタンイベント
   const refreshBtn = document.getElementById('refresh-btn');
   const settingsBtn = document.getElementById('settings-btn');
@@ -420,6 +500,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // モーダルイベント
   const modalClose = document.getElementById('modal-close');
   const modalOverlay = document.querySelector('.modal-overlay');
+  const modalSelectAll = document.getElementById('modal-select-all');
+  const modalCopy = document.getElementById('modal-copy');
 
   modalClose?.addEventListener('click', () => {
     hideHtmlModal();
@@ -429,10 +511,33 @@ document.addEventListener('DOMContentLoaded', () => {
     hideHtmlModal();
   });
 
+  modalSelectAll?.addEventListener('click', () => {
+    selectAllModalContent();
+  });
+
+  modalCopy?.addEventListener('click', () => {
+    copySelectedModalContent();
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       hideContextMenu();
       hideHtmlModal();
+    }
+    
+    // HTMLモーダル表示中のキーボードショートカット
+    const htmlModal = document.getElementById('html-modal');
+    if (htmlModal && htmlModal.style.display === 'block') {
+      // Cmd+A (全選択) - macOS
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        selectAllModalContent();
+      }
+      
+      // Cmd+C (コピー) - 選択されたテキストをクリップボードにコピー
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        copySelectedModalContent();
+      }
     }
   });
 

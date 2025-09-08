@@ -2,6 +2,9 @@
 
 このファイルは、このリポジトリでのコード作業時にClaude Code (claude.ai/code) へのガイダンスを提供します。
 
+### 重要 ###
+コードを書くときはフォールバックを準備指定はいけません。エラーにすべきで、そうしないとエラーがわからなくなってしまいます。意図した挙動をしない場合の処理は必ずエラーを出すようにしてください
+
 ## 開発コマンド
 
 ### ビルドと開発
@@ -9,7 +12,6 @@
 - `npm run build` - メインプロセスとレンダラープロセスの両方をビルド
 - `npm run build:main` - メインプロセスのみビルド（TypeScript → JavaScript）
 - `npm run build:renderer` - レンダラープロセスのみビルド（TypeScript → JavaScript）
-- `npm run copy:assets` - HTML/CSSファイルをdistディレクトリにコピー
 
 ### 開発ワークフロー
 - `npm run watch` - メインとレンダラーの両方を監視（並列実行）
@@ -52,7 +54,7 @@ dist/               # コンパイル済み出力ディレクトリ
 - **TypeScript 5.3.0** - 型安全なJavaScript開発
 - **ESLint + Prettier** - コード品質とフォーマット
 - **electron-builder** - アプリのパッケージ化と配布
-- **claude-conversation-extractor** - JSONL会話ログ抽出ツール（pipx経由）
+- **TypeScript版claude-extractor** - 内蔵JSONL会話ログ抽出機能
 
 ### アプリケーションアーキテクチャ
 
@@ -64,8 +66,8 @@ dist/               # コンパイル済み出力ディレクトリ
 
 **レンダラープロセス（`src/renderer/renderer.ts`）**:
 - UI初期化とテーマ管理
-- 現在はウェルカム画面を実装（フェーズ1完了）
-- プロジェクト/ファイル管理のための2ペインレイアウトに拡張予定
+- 2ペインレイアウト（プロジェクト一覧 + ファイル一覧）
+- JSONL→HTML変換とモーダル表示機能
 
 **セキュリティモデル**:
 - `nodeIntegration: false` - レンダラーでのNode.js直接アクセス無効
@@ -75,9 +77,9 @@ dist/               # コンパイル済み出力ディレクトリ
 ## 開発フェーズ状況
 
 プロジェクトは段階的開発アプローチに従います（`implPlan.md`参照）:
-- ✅ **フェーズ1**: TypeScript設定付き基本Electronアプリ - **完了**
-- 🚀 **フェーズ2**: メインUIレイアウト（2ペイン設計） - **進行中**
-- **フェーズ3以降**: ファイルシステム統合、JSONL処理、HTML表示
+- ✅ **フェーズ1-6**: TypeScript + Electron基盤、UI、ファイルシステム統合、JSONL処理 - **完了**
+- 🎯 **現在**: TypeScript版claude-extractor実装完了、Python依存関係削除済み
+- **次回**: エクスポート機能、設定画面、配布準備
 
 ## ビルド設定
 
@@ -89,17 +91,19 @@ dist/               # コンパイル済み出力ディレクトリ
 **出力構造**:
 ```
 dist/
-├── main/main/      # コンパイル済みメインプロセス
-├── renderer/renderer/ # コンパイル済みレンダラー + アセット
+├── main/
+│   ├── main/       # コンパイル済みメインプロセス
+│   └── lib/        # TypeScript版claude-extractor
+└── renderer/       # コンパイル済みレンダラー + アセット
 ```
 
 ## 開発中の主要機能
 
-1. **Claude Projects統合**: `~/.claude/projects`からのプロジェクト自動検出
-2. **JSONL処理**: 外部ツール統合による会話ログ解析
-3. **HTML表示**: テーマ対応スタイルでのMarkdownからHTML変換
-4. **モーダルビューア**: ナビゲーション付きオーバーレイウィンドウでの会話表示
-5. **エクスポート機能**: HTML/PDFエクスポート機能
+1. **Claude Projects統合**: `~/.claude/projects`からのプロジェクト自動検出 ✅
+2. **JSONL処理**: TypeScript版claude-extractorによる会話ログ解析 ✅
+3. **HTML表示**: テーマ対応スタイルでのMarkdownからHTML変換 ✅
+4. **モーダルビューア**: ナビゲーション付きオーバーレイウィンドウでの会話表示 ✅
+5. **エクスポート機能**: HTML/PDFエクスポート機能（未実装）
 
 ## プロジェクトドキュメント
 
@@ -108,20 +112,18 @@ dist/
 
 **完了済み**:
 - ✅ フェーズ1: TypeScript + Electron基盤構築
-
-**進行中**:
-- 🚀 フェーズ2: 2ペインレイアウト（プロジェクト一覧 + ファイル一覧）
+- ✅ フェーズ2: 2ペインレイアウト（プロジェクト一覧 + ファイル一覧）
+- ✅ フェーズ3-4: ファイルシステム統合とJSONL管理
+- ✅ フェーズ5-6: TypeScript版claude-extractor統合とHTML変換
 
 **今後の予定**:
-- フェーズ3-4: ファイルシステム統合とJSONL管理
-- フェーズ5-6: claude-conversation-extractor統合とHTML変換
-- フェーズ7-8: モーダル表示とエクスポート機能
+- フェーズ7-8: エクスポート機能とUI最適化
 - フェーズ9-10: 設定機能と配布準備
 
 ### 機能仕様（`spec.md`）
 主要機能要件:
 - **プロジェクト管理**: `~/.claude/projects`からの自動検出
-- **JSONL処理**: claude-conversation-extractor（PyInstaller版）統合
+- **JSONL処理**: TypeScript版claude-extractor統合
 - **HTML変換**: カスタムMarkdown→HTML変換エンジン
 - **モーダル表示**: 画面80%サイズのオーバーレイビューア
 - **エクスポート**: HTML/PDF出力機能
@@ -136,23 +138,24 @@ dist/
 - **プログレス表示**: 4段階（準備→変換→処理→完了）
 - **キーボードショートカット**: Cmd+R（更新）、Escape（閉じる）等
 
-## claude-conversation-extractorセットアップ
+## TypeScript版claude-extractor
 
-### インストール（初回のみ）
-```bash
-# pipxのインストール
-brew install pipx
-pipx ensurepath
+### 内蔵機能
+**完全TypeScript実装**: `src/lib/claudeExtractor.ts`
+- 外部依存なしの純粋TypeScript実装
+- Python版と同等のJSONL解析・Markdown生成機能
+- 直接ファイルパス指定による高速変換
+- 複雑なセッション番号特定ロジック不要
 
-# claude-conversation-extractorのインストール
-pipx install claude-conversation-extractor
+### 主要クラス・メソッド
+```typescript
+class ClaudeExtractor {
+  async convertFile(jsonlPath: string): Promise<string>
+  private parseJsonl(filePath: string): ConversationData
+  private extractTextContent(content: any): string
+  private generateMarkdown(data: ConversationData): string
+}
 ```
-
-### 使用可能コマンド
-- `claude-extract --list` - セッション一覧表示
-- `claude-extract --extract 1` - 最新セッション抽出
-- `claude-extract --recent 5` - 最新5セッション抽出
-- `claude-extract --all` - 全セッション抽出
 
 ## 開発メモ
 

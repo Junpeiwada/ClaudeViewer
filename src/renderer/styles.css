@@ -476,6 +476,44 @@ body {
     height: 100%;
     overflow: auto;
     padding: 1rem;
+    /* テキスト選択を明示的に有効化 */
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    cursor: text;
+}
+
+/* HTMLモーダル内のすべての要素でテキスト選択を有効化 */
+.modal-html-content *,
+.modal-html-content *::before,
+.modal-html-content *::after {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+/* コードブロックやpreタグで特にテキスト選択を強制 */
+.modal-html-content code,
+.modal-html-content pre,
+.modal-html-content .code-block {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    cursor: text !important;
+}
+
+/* ボタンなど特定の要素は選択無効のまま */
+.modal-html-content button,
+.modal-html-content .modal-btn,
+.modal-html-content summary::marker {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    cursor: pointer !important;
 }
 
 /* アニメーション */

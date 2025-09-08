@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onThemeChanged: (callback: (theme: { shouldUseDarkColors: boolean }) => void) => {
     ipcRenderer.on('theme-changed', (_, theme) => callback(theme));
   },
+  onDebugLog: (callback: (message: string) => void) => {
+    ipcRenderer.on('debug-log', (_, message) => callback(message));
+  },
 
   // アプリ情報
   getVersion: () => ipcRenderer.sendSync('get-version'),
@@ -24,8 +27,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // システム操作
   showInFinder: (filePath: string) => ipcRenderer.invoke('show-in-finder', filePath),
   
-  // ファイル変換
-  convertJsonlToMd: (jsonlPath: string, outputDir: string) => ipcRenderer.invoke('convert-jsonl-to-md', jsonlPath, outputDir),
+  // ファイル変換（新しいTypeScript版）
+  convertJsonlToMd: (jsonlPath: string) => ipcRenderer.invoke('convert-jsonl-to-md', jsonlPath),
   convertMdToHtml: (mdContent: string) => ipcRenderer.invoke('convert-md-to-html', mdContent),
   
   // ファイル操作
@@ -51,12 +54,13 @@ declare global {
     electronAPI: {
       getTheme: () => { shouldUseDarkColors: boolean };
       onThemeChanged: (callback: (theme: { shouldUseDarkColors: boolean }) => void) => void;
+      onDebugLog: (callback: (message: string) => void) => void;
       getVersion: () => string;
       getProjects: () => Promise<Project[]>;
       getProjectFiles: (projectPath: string) => Promise<ConversationFile[]>;
       showErrorDialog: (title: string, message: string) => Promise<void>;
       showInFinder: (filePath: string) => Promise<void>;
-      convertJsonlToMd: (jsonlPath: string, outputDir: string) => Promise<{ success: boolean; mdPath?: string; error?: string }>;
+      convertJsonlToMd: (jsonlPath: string) => Promise<{ success: boolean; mdContent?: string; error?: string }>;
       convertMdToHtml: (mdContent: string) => Promise<{ success: boolean; html?: string; error?: string }>;
       readFile: (filePath: string) => Promise<string>;
     };
