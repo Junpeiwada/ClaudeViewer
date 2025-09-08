@@ -37,7 +37,17 @@ export class ClaudeExtractor {
     const conversationData = this.parseJsonl(jsonlPath);
     
     if (conversationData.messages.length === 0) {
-      throw new Error('No valid conversation messages found in file');
+      // 空のファイルまたはメタメッセージのみの場合は、情報メッセージを返す
+      const emptyConversation: ConversationData = {
+        messages: [{
+          role: 'assistant',
+          content: 'このセッションには表示可能な会話メッセージがありません。\n\n含まれる内容：\n- メタ情報\n- コマンド実行ログ\n- システムメッセージ\n\nこれらの情報は通常、会話履歴には表示されません。',
+          timestamp: conversationData.firstTimestamp
+        }],
+        sessionId: conversationData.sessionId,
+        firstTimestamp: conversationData.firstTimestamp
+      };
+      return this.generateMarkdown(emptyConversation);
     }
 
     return this.generateMarkdown(conversationData);

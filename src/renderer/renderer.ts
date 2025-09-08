@@ -93,7 +93,15 @@ async function buildTreeStructure(): Promise<void> {
 
       // プロジェクト内のファイルを取得
       const files = await window.electronAPI.getProjectFiles(project.path);
-      for (const file of files) {
+      
+      // ファイルを日付の新しい順でソート
+      const sortedFiles = files.sort((a, b) => {
+        const dateA = a.mtime ? new Date(a.mtime) : new Date(a.date.replace(' ', 'T'));
+        const dateB = b.mtime ? new Date(b.mtime) : new Date(b.date.replace(' ', 'T'));
+        return dateB.getTime() - dateA.getTime(); // 新しい日付が上に
+      });
+      
+      for (const file of sortedFiles) {
         const fileNode: TreeNode = {
           id: `file-${project.name}-${file.name}`,
           name: file.name,
@@ -186,7 +194,7 @@ function createTreeNodeElement(node: TreeNode): HTMLElement {
         <span class="tree-indent"></span>
         <span class="tree-icon">📄</span>
         <span class="tree-label">${sessionId}...</span>
-        <span class="tree-meta">${fileData?.date || ''}</span>
+        <span class="tree-meta">${fileData?.size || ''} | ${fileData?.date || ''}</span>
       </div>
     `;
     
