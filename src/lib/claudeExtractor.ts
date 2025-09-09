@@ -115,12 +115,16 @@ export class ClaudeExtractor {
   }
 
   /**
-   * メッセージをスキップすべきかどうかを判定（元版準拠・フィルタリング強化）
+   * メッセージをスキップすべきかどうかを判定（command-args の重要内容を保持）
    */
   private shouldSkipMessage(content: any): boolean {
     if (typeof content === 'string') {
+      // command-args が含まれている場合は重要なユーザー入力なのでスキップしない
+      if (content.includes('<command-args>')) {
+        return false;
+      }
+      
       return (
-        content.includes('<command-name>') ||
         content.includes('<local-command-stdout>') ||
         content.includes('system-reminder') ||
         content.includes('Caveat: The messages below') ||
@@ -143,12 +147,26 @@ export class ClaudeExtractor {
   }
 
   /**
-   * Claude内部の様々なコンテンツ形式からテキストのみを抽出（元版準拠・シンプル化）
+   * Claude内部の様々なコンテンツ形式からテキストのみを抽出（command-args 対応）
    * @param content 任意の形式のコンテンツ
    * @returns 抽出されたテキスト
    */
   private extractTextContent(content: any): string {
     if (typeof content === 'string') {
+      // command-args の内容を抽出
+      if (content.includes('<command-args>')) {
+        const argsMatch = content.match(/<command-args>(.*?)<\/command-args>/s);
+        if (argsMatch) {
+          const argsContent = argsMatch[1].trim();
+          // command-message も含まれている場合は一緒に表示
+          const messageMatch = content.match(/<command-message>(.*?)<\/command-message>/s);
+          if (messageMatch) {
+            const messageContent = messageMatch[1].trim();
+            return `${messageContent}\n\n${argsContent}`;
+          }
+          return argsContent;
+        }
+      }
       return content;
     }
 
