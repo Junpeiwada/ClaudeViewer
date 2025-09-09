@@ -18,7 +18,8 @@
     "format": "prettier --write src/**/*.ts",
     "clean": "rimraf dist",
     "dist": "npm run build:main && npm run build:renderer:prod && electron-builder",
-    "dist:mac": "npm run build:main && npm run build:renderer:prod && electron-builder --mac"
+    "dist:mac": "npm run build:main && npm run build:renderer:prod && electron-builder --mac",
+    "build:mac:install": "npm run dist:mac && rm -rf \"/Applications/Claude Code Viewer.app\" && cp -R \"dist/build/mac-universal/Claude Code Viewer.app\" /Applications/ && VERSION=$(node -p \"require('./package.json').version\") && echo \"Claude Code Viewer: 正常完了 バージョン $VERSION\" && say -v Kyoko \"クロード コード ビューアのビルドとインストールが完了しました。バージョン$VERSION\" || (echo \"Claude Code Viewer: エラーが発生しました\" && say -v Kyoko \"クロード コード ビューアでエラーが発生しました\" && exit 1)"
   },
   "keywords": [
     "electron",
