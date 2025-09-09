@@ -7,10 +7,21 @@ import { ClaudeExtractor } from '../lib/claudeExtractor';
 // fsSync for icon file existence check
 const fsSync = fs;
 
+interface WindowSettings {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  isMaximized?: boolean;
+}
+
 class ClaudeViewer {
   private mainWindow: BrowserWindow | null = null;
+  private settingsFilePath: string;
 
   constructor() {
+    // 設定ファイルパスを設定（ユーザーのホームディレクトリ）
+    this.settingsFilePath = path.join(os.homedir(), '.claude-viewer-settings.json');
     this.init();
   }
 
@@ -86,10 +97,15 @@ class ClaudeViewer {
       console.warn('ウィンドウアイコンファイルが見つかりません:', iconPath);
     }
 
+    // 前回のウィンドウ設定を読み込み
+    const windowSettings = this.loadWindowSettings();
+
     // メインウィンドウの作成
     this.mainWindow = new BrowserWindow({
-      width: 1200,
-      height: 800,
+      width: windowSettings.width,
+      height: windowSettings.height,
+      x: windowSettings.x,
+      y: windowSettings.y,
       minWidth: 800,
       minHeight: 600,
       titleBarStyle: 'default',
@@ -101,6 +117,11 @@ class ClaudeViewer {
       },
       show: false, // 準備完了後に表示
     });
+
+    // 前回最大化されていた場合は最大化
+    if (windowSettings.isMaximized) {
+      this.mainWindow.maximize();
+    }
 
     // HTMLファイルの読み込み（Webpack出力）
     this.mainWindow.loadFile(path.join(__dirname, '../../renderer', 'index.html'));
@@ -142,6 +163,23 @@ class ClaudeViewer {
     // ウィンドウが閉じられたときの処理
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
+    });
+
+    // ウィンドウサイズ・位置変更時の処理
+    this.mainWindow.on('resize', () => {
+      this.saveWindowSettings();
+    });
+
+    this.mainWindow.on('move', () => {
+      this.saveWindowSettings();
+    });
+
+    this.mainWindow.on('maximize', () => {
+      this.saveWindowSettings();
+    });
+
+    this.mainWindow.on('unmaximize', () => {
+      this.saveWindowSettings();
     });
 
     // ウィンドウタイトルの設定
@@ -508,7 +546,65 @@ class ClaudeViewer {
     );
   }
 
-  // 会話用CSSスタイル
+  // ウィンドウ設定を読み込み
+  private loadWindowSettings(): WindowSettings {
+    const defaultSettings: WindowSettings = {
+      width: 1200,
+      height: 800,
+      isMaximized: false,
+    };
+
+    try {
+      if (fs.existsSync(this.settingsFilePath)) {
+        const settingsData = fs.readFileSync(this.settingsFilePath, 'utf-8');
+        const savedSettings = JSON.parse(settingsData) as WindowSettings;
+        
+        // 設定値の検証
+        const settings: WindowSettings = {
+          width: Math.max(savedSettings.width || defaultSettings.width, 800),
+          height: Math.max(savedSettings.height || defaultSettings.height, 600),
+          x: savedSettings.x,
+          y: savedSettings.y,
+          isMaximized: savedSettings.isMaximized || false,
+        };
+
+        console.log('ウィンドウ設定を読み込みました:', settings);
+        return settings;
+      }
+    } catch (error) {
+      console.error('ウィンドウ設定の読み込みエラー:', error);
+    }
+
+    console.log('デフォルトウィンドウ設定を使用します');
+    return defaultSettings;
+  }
+
+  // ウィンドウ設定を保存
+  private saveWindowSettings(): void {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+      return;
+    }
+
+    try {
+      const isMaximized = this.mainWindow.isMaximized();
+      const bounds = this.mainWindow.getBounds();
+      
+      const settings: WindowSettings = {
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        isMaximized,
+      };
+
+      fs.writeFileSync(this.settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8');
+      console.log('ウィンドウ設定を保存しました:', settings);
+    } catch (error) {
+      console.error('ウィンドウ設定の保存エラー:', error);
+    }
+  }
+
+  // 会話用CSSスタイル（未使用だが互換性のため保持）
   private getConversationStyles(): string {
     return `
       :root {
